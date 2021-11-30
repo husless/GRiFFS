@@ -1,0 +1,14 @@
+E:\Tinghua\GlobalHydroNew\src\renNew\WebService\WS\bin\WS.dll
+E:\Tinghua\GlobalHydroNew\src\renNew\WebService\WS\bin\WS.pdb
+E:\Tinghua\GlobalHydroNew\src\renNew\WebService\WS\bin\JZJW.Winder.BLL.dll
+E:\Tinghua\GlobalHydroNew\src\renNew\WebService\WS\bin\JZJW.Winder.BLL.pdb
+E:\Tinghua\GlobalHydroNew\src\renNew\WebService\WS\obj\Debug\WS.dll
+E:\Tinghua\GlobalHydroNew\src\renNew\WebService\WS\obj\Debug\WS.pdb
+E:\Tinghua\GlobalHydroNew\src\renNew\WebService\WS\obj\Debug\WS.csprojResolveAssemblyReference.cache
+F:\liurh01\00-GlobalHydroNew\src\renNew\WebService\WS\bin\WS.dll
+F:\liurh01\00-GlobalHydroNew\src\renNew\WebService\WS\bin\WS.pdb
+F:\liurh01\00-GlobalHydroNew\src\renNew\WebService\WS\bin\JZJW.Winder.BLL.dll
+F:\liurh01\00-GlobalHydroNew\src\renNew\WebService\WS\bin\JZJW.Winder.BLL.pdb
+F:\liurh01\00-GlobalHydroNew\src\renNew\WebService\WS\obj\Debug\WS.csprojResolveAssemblyReference.cache
+F:\liurh01\00-GlobalHydroNew\src\renNew\WebService\WS\obj\Debug\WS.dll
+F:\liurh01\00-GlobalHydroNew\src\renNew\WebService\WS\obj\Debug\WS.pdb

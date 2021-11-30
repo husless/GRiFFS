@@ -1,0 +1,93 @@
+E:\Tinghua\GlobalHydro\src\output\JZJW.Winder.BLL.dll
+E:\Tinghua\GlobalHydro\src\output\JZJW.Winder.BLL.pdb
+E:\Tinghua\GlobalHydro\src\JZJW.Winder.BLL\obj\Release\ResolveAssemblyReference.cache
+E:\Tinghua\GlobalHydro\src\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.dll
+E:\Tinghua\GlobalHydro\src\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.pdb
+F:\liurh01\00-GlobalHydroNew\src\output\JZJW.Winder.BLL.dll
+F:\liurh01\00-GlobalHydroNew\src\output\JZJW.Winder.BLL.pdb
+F:\liurh01\00-GlobalHydroNew\src\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.dll
+F:\liurh01\00-GlobalHydroNew\src\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.pdb
+E:\Tinghua\GlobalHydroNew\src\output\JZJW.Winder.BLL.dll
+E:\Tinghua\GlobalHydroNew\src\output\JZJW.Winder.BLL.pdb
+E:\Tinghua\GlobalHydroNew\src\JZJW.Winder.BLL\obj\Release\ResolveAssemblyReference.cache
+E:\Tinghua\GlobalHydroNew\src\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.dll
+E:\Tinghua\GlobalHydroNew\src\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.pdb
+E:\Tinghua\GlobalHydroV2.0\src\output\JZJW.Winder.BLL.dll
+E:\Tinghua\GlobalHydroV2.0\src\output\JZJW.Winder.BLL.pdb
+E:\Tinghua\GlobalHydroV2.0\src\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.dll
+E:\Tinghua\GlobalHydroV2.0\src\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.pdb
+F:\liurh01\GlobalHydroV2.0\src\output\JZJW.Winder.BLL.dll
+F:\liurh01\GlobalHydroV2.0\src\output\JZJW.Winder.BLL.pdb
+F:\liurh01\GlobalHydroV2.0\src\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.dll
+F:\liurh01\GlobalHydroV2.0\src\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.pdb
+F:\liurh01\GlobalHydroV2.0\src\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.csprojResolveAssemblyReference.cache
+E:\01Other\GlobalHydro2\src\output\JZJW.Winder.BLL.dll
+E:\01Other\GlobalHydro2\src\output\JZJW.Winder.BLL.pdb
+E:\01Other\GlobalHydro2\src\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.dll
+E:\01Other\GlobalHydro2\src\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.pdb
+E:\01Other\GlobalHydro2\src\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.csprojResolveAssemblyReference.cache
+C:\0Ren0830Data\GlobalHydroV2.0YUN\src\output\JZJW.Winder.BLL.dll
+C:\0Ren0830Data\GlobalHydroV2.0YUN\src\output\JZJW.Winder.BLL.pdb
+C:\0Ren0830Data\GlobalHydroV2.0YUN\src\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.csprojResolveAssemblyReference.cache
+C:\0Ren0830Data\GlobalHydroV2.0YUN\src\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.dll
+C:\0Ren0830Data\GlobalHydroV2.0YUN\src\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.pdb
+C:\0Ren0830Data\GlobalHydroV2.0YUN\srcV2\output\JZJW.Winder.BLL.dll
+C:\0Ren0830Data\GlobalHydroV2.0YUN\srcV2\output\JZJW.Winder.BLL.pdb
+C:\0Ren0830Data\GlobalHydroV2.0YUN\srcV2\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.csprojResolveAssemblyReference.cache
+C:\0Ren0830Data\GlobalHydroV2.0YUN\srcV2\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.dll
+C:\0Ren0830Data\GlobalHydroV2.0YUN\srcV2\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.pdb
+C:\0Ren0830Data\GlobalHydroV2.0YUN\srcV3\output\JZJW.Winder.BLL.dll
+C:\0Ren0830Data\GlobalHydroV2.0YUN\srcV3\output\JZJW.Winder.BLL.pdb
+C:\0Ren0830Data\GlobalHydroV2.0YUN\srcV3\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.csprojResolveAssemblyReference.cache
+C:\0Ren0830Data\GlobalHydroV2.0YUN\srcV3\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.dll
+C:\0Ren0830Data\GlobalHydroV2.0YUN\srcV3\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.pdb
+C:\0Ren0830Data\GlobalHydroV2.0YUN\srcV4English\output\JZJW.Winder.BLL.dll
+C:\0Ren0830Data\GlobalHydroV2.0YUN\srcV4English\output\JZJW.Winder.BLL.pdb
+C:\0Ren0830Data\GlobalHydroV2.0YUN\srcV4English\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.csprojResolveAssemblyReference.cache
+C:\0Ren0830Data\GlobalHydroV2.0YUN\srcV4English\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.dll
+C:\0Ren0830Data\GlobalHydroV2.0YUN\srcV4English\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.pdb
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English\output\JZJW.Winder.BLL.dll
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English\output\JZJW.Winder.BLL.pdb
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.csprojResolveAssemblyReference.cache
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.dll
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.pdb
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_Price\output\JZJW.Winder.BLL.dll
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_Price\output\JZJW.Winder.BLL.pdb
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_Price\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.csprojResolveAssemblyReference.cache
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_Price\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.dll
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_Price\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.pdb
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_PriceV1.1_20150124\output\JZJW.Winder.BLL.dll
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_PriceV1.1_20150124\output\JZJW.Winder.BLL.pdb
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_PriceV1.1_20150124\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.csprojResolveAssemblyReference.cache
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_PriceV1.1_20150124\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.dll
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_PriceV1.1_20150124\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.pdb
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_PriceV1.3_20150211\output\JZJW.Winder.BLL.dll
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_PriceV1.3_20150211\output\JZJW.Winder.BLL.pdb
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_PriceV1.3_20150211\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.csprojResolveAssemblyReference.cache
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_PriceV1.3_20150211\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.dll
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_PriceV1.3_20150211\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.pdb
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_PriceV1.4_20150325\output\JZJW.Winder.BLL.dll
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_PriceV1.4_20150325\output\JZJW.Winder.BLL.pdb
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_PriceV1.4_20150325\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.csprojResolveAssemblyReference.cache
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_PriceV1.4_20150325\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.dll
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_PriceV1.4_20150325\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.pdb
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_PriceV1.5_20150604\output\JZJW.Winder.BLL.dll
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_PriceV1.5_20150604\output\JZJW.Winder.BLL.pdb
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_PriceV1.5_20150604\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.csprojResolveAssemblyReference.cache
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_PriceV1.5_20150604\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.dll
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_PriceV1.5_20150604\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.pdb
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_PriceV2.1_20150704N\output\JZJW.Winder.BLL.dll
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_PriceV2.1_20150704N\output\JZJW.Winder.BLL.pdb
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_PriceV2.1_20150704N\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.csprojResolveAssemblyReference.cache
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_PriceV2.1_20150704N\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.dll
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_PriceV2.1_20150704N\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.pdb
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_PriceV2.2_20150826N\output\JZJW.Winder.BLL.dll
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_PriceV2.2_20150826N\output\JZJW.Winder.BLL.pdb
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_PriceV2.2_20150826N\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.csprojResolveAssemblyReference.cache
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_PriceV2.2_20150826N\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.dll
+C:\0_HydroGlobal 2.0\GlobalHydroV2.0YUN\srcV4English_PriceV2.2_20150826N\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.pdb
+E:\01云\src\srcV4English_PriceV2.2_20150826N\output\JZJW.Winder.BLL.dll
+E:\01云\src\srcV4English_PriceV2.2_20150826N\output\JZJW.Winder.BLL.pdb
+E:\01云\src\srcV4English_PriceV2.2_20150826N\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.csprojResolveAssemblyReference.cache
+E:\01云\src\srcV4English_PriceV2.2_20150826N\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.dll
+E:\01云\src\srcV4English_PriceV2.2_20150826N\JZJW.Winder.BLL\obj\Release\JZJW.Winder.BLL.pdb

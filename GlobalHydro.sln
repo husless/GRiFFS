@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JZJW.Winder.WebApp", "JZJW.Winder.WebApp\JZJW.Winder.WebApp.csproj", "{7F5E9820-307C-45E1-B816-753B72900327}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JZJW.Winder.BLL", "JZJW.Winder.BLL\JZJW.Winder.BLL.csproj", "{91CBCBFB-7EE2-4902-8E1A-739485A2E756}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{7F5E9820-307C-45E1-B816-753B72900327}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7F5E9820-307C-45E1-B816-753B72900327}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7F5E9820-307C-45E1-B816-753B72900327}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7F5E9820-307C-45E1-B816-753B72900327}.Release|Any CPU.Build.0 = Release|Any CPU
+		{91CBCBFB-7EE2-4902-8E1A-739485A2E756}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{91CBCBFB-7EE2-4902-8E1A-739485A2E756}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{91CBCBFB-7EE2-4902-8E1A-739485A2E756}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{91CBCBFB-7EE2-4902-8E1A-739485A2E756}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,453 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009"
+				   xmlns:s="library://ns.adobe.com/flex/spark"
+				   xmlns:mx="library://ns.adobe.com/flex/mx" backgroundColor="white"
+				   xmlns:viewer="com.esri.viewer.*"
+				   initialize="basewidget_initializeHandler()"
+				   preinitialize="basewidget_preinitializeHandler(event)"
+				   xmlns:components="com.esri.viewer.components.*"
+				   xmlns:RDateTime="com.esri.viewer.components.RDateTime.*"
+				   widgetConfigLoaded="basewidget_widgetConfigLoaded()"
+				   xmlns:amcharts="http://www.amcharts.com/com_internal">
+	<fx:Declarations>
+		<mx:SolidColorStroke id = "s1" color="blue" weight="2"/> 
+		<s:DateTimeFormatter id="dateTimeFormatter" dateTimePattern="yyyy-MM-dd 00:00:00"/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import com.amcharts.chartClasses.AmGraph;
+			import com.esri.ags.tasks.geoEnrichmentClasses.DataCollection;
+			import com.esri.viewer.AppEvent;
+			import com.esri.viewer.AppUtil;
+			
+			import mx.charts.series.LineSeries;
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.FlexVersion;
+			import mx.events.FlexEvent;
+			import mx.formatters.DateFormatter;
+			import mx.rpc.events.ResultEvent;
+			import mx.utils.ObjectUtil;
+			
+			import spark.events.DropDownEvent;
+			import spark.events.IndexChangeEvent;
+			private var reqUrl:String="";
+			
+			[Bindable]
+			private var dataArray:ArrayCollection=new ArrayCollection();
+			//当前选中的河段
+			private var commonData:ArrayCollection=new ArrayCollection();
+			//中间变量
+			private var arrC:ArrayCollection=new ArrayCollection();
+			//采样时间间隔
+			[Bindable]
+			private var cbxTInteralData:ArrayCollection=new ArrayCollection(
+				[
+					{label:"6  minute",data:6},
+					{label:"12 minute",data:12},
+					{label:"30 minute",data:30},
+					{label:"1  hour",data:60}
+				]
+			);
+			//静态类时间间隔
+			private var TInternal:Number;
+			private static var TInternalVal:Number;			
+			
+			//日期格式
+			private var dateFormatter:DateFormatter = new DateFormatter();			
+			//起始时间
+			private var startTime:Number;
+			private var endTime:Number;			
+			private var dataArrayStart:Date;
+			
+			private function basewidget_initializeHandler():void
+			{
+				if (isPartOfPanel) 
+				{
+					this.percentWidth = this.percentHeight = 100;
+					wTemplate.percentWidth = wTemplate.percentHeight = 100;
+				}
+				else
+				{
+					wTemplate.width =740;//540;
+					wTemplate.height = 460;//340
+				}
+				//日期格式化
+				//chartCategory.dateFormats=[{period:'hh',format:'YYYY-MM-DD JJ:NN'},{period:'DD',format:'YYYY-MM-DD JJ:NN'},{period:'MM',format:'YYYY-MM-DD JJ:NN'},{period:'YYYY',format:'YYYY-MM-DD JJ:NN'}];
+				//chartCategory.dateFormats=[{period:'mm',format:'YYYY-MM-DD JJ:NN'},{period:'hh',format:'YYYY-MM-DD JJ'},{period:'DD',format:'YYYY-MM-DD'},{period:'MM',format:'YYYY-MM'},{period:'YYYY',format:'YYYY'}];
+			}
+
+			private function basewidget_widgetConfigLoaded():void{
+				if (configXML){
+					reqUrl = configXML.url;
+				}
+				AppEvent.addListener(AppEvent.DATA_PUBLISH, sharedDataUpdatedPublish);
+				AppEvent.addListener(AppEvent.DATA_SENT,sharedDataUpdated);
+				AppEvent.dispatch(AppEvent.DATA_FETCH_ALL);
+				dateFormatter.formatString = "YYYY-MM-DD JJ:NN";
+			}			
+			private function sharedDataUpdatedPublish(event:AppEvent):void{			
+				var data:Object = event.data;
+				if(data.key=="linechart"){
+					var ac:ArrayCollection=data.collection;
+				    if(ac !=null &&ac.length>0)
+					{
+						commonData=ac;
+						sharedCommon(commonData);
+					}
+				}
+			}			
+			private function sharedDataUpdated(event:AppEvent):void{
+				var data:Object = event.data.find("linechart");
+				if(data !=null){
+					var ac:ArrayCollection=data as ArrayCollection;
+					if(ac.length>0)
+					{
+						commonData=ac;
+						sharedCommon(commonData);				
+					}
+				}
+			}
+			private function sharedCommon(ac:ArrayCollection):void
+			{
+				var attrs:Object=ac.getItemAt(0);
+				var channelid:String=attrs["CHANNELID"];
+				var binstrlen:String=attrs["BINSTRLEN"];
+				var binstrval:String=attrs["BINSTRVAL"];
+				var regionid:String=attrs["REGIONCODE"];
+				var reghighid:String="";
+				
+				var SCCD:String=configData.scmid;
+				if(SCCD =="")
+				{
+					Alert.show("Please select a scenario");					
+					return;
+				}
+				//lblTitle.text="Segment "+channelid+" Discharge Hydrograph";
+				lblTitle.text="REGIONCODE="+regionid+"、"+"BINSTRVAL="+binstrval+"、"+"BINSTRLEN="+binstrlen+" Discharge Hydrograph";
+				var Datetmp:Date=new Date();
+				var sdt:Date=new Date();
+				var edt:Date=new Date();
+				sdt.setDate(Datetmp.date-2);
+				edt.setDate(Datetmp.date+5);
+				//调用服务
+				onGetService(dateTimeFormatter.format(sdt),dateTimeFormatter.format(edt),binstrlen,binstrval,regionid,SCCD);
+			
+			}
+			//获取服务结果
+			private function onGetService(stime:String,etime:String,binstrlen:String,binstrval:String,regionid:String,SCCD:String):void
+			{
+				try{
+					TInternal=cbxTInteral.selectedItem.data as Number;
+
+					var url:String=reqUrl+"WinderHandler.aspx?act=linechart";
+					var params:URLVariables = new URLVariables();
+					params.stime=stime;
+					params.etime=etime;
+					params.binstrlen=binstrlen;
+					params.binstrval=binstrval;
+					params.regionid=regionid;
+					params.reghighid="";
+					params.type="QOUTPUT";
+					params.SCCD=SCCD;
+					//时间间隔
+					params.inter=TInternal;
+
+					AppUtil.req(url,params,onGetLineChartDataResult);
+					this.cursorManager.setBusyCursor();	
+				}
+				catch(err:Error){
+					this.cursorManager.removeBusyCursor();
+				}	
+			}
+			private function onGetLineChartDataResult(event:ResultEvent):void{
+				var strResult:String=event.result as String;
+				this.cursorManager.removeBusyCursor();	
+				if(myChart.dataProvider){
+					myChart.dataProvider.removeAll();
+				}
+				
+				if(strResult){
+					var obj:Object=JSON.parse(strResult);
+					dataArray.removeAll();
+					if(obj!=null){
+						var rows:Array=obj.result.rows as Array;
+						if(rows!=null && rows.length>0){
+							for(var i:int=0;i<rows.length;i++){
+								var lineobj:Object=rows[i];
+								//日期类型
+								var newObj:Object={
+									//DAY:lineobj.DAY,//+":00",
+									//DAY:DateFormatter.parseDateString(lineobj.DAY),
+									DAY:dateFormatter.format(lineobj.DAY),
+									WH:Number(lineobj.WH)
+								};
+								dataArray.addItem(newObj);
+							}
+							myChart.dataProvider=dataArray;
+							//中间
+							/*
+							arrC=new ArrayCollection(dataArray.source);
+							sDT.text=dataArray.getItemAt(0)["DAY"]+":00";
+							eDT.text=dataArray.getItemAt(dataArray.length-1)["DAY"]+":00";
+							sDT.data=DateFormatter.parseDateString(dataArray.getItemAt(0)["DAY"]+":00");
+							eDT.data=DateFormatter.parseDateString(dataArray.getItemAt(dataArray.length-1)["DAY"]+":00");
+							//cbxTInteral.selectedIndex=3;
+							//functionFilter();
+							*/
+							
+							
+							
+							//myChart.zoomToIndexes(myChart.startIndex,myChart.endIndex);
+							//设置开始时间
+							//sDT.date_input.text=dataArray.getItemAt(0)["DAY"].toString();
+							
+							//设置结束时间
+							//eDT.date_input.text=dataArray.getItemAt(dataArray.length-1)["DAY"].toString();
+						}
+					}
+				}
+				else{
+					this.cursorManager.removeBusyCursor();	
+				}
+				
+			}
+			
+			
+			protected function init():void{
+			
+			}
+			protected function basewidget_preinitializeHandler(event:FlexEvent):void
+			{
+				if (FlexVersion.CURRENT_VERSION >= 0x04060000)
+				{
+					// work-around for 4.6 regression
+					copyStyleFromParent("mx.charts.chartClasses.ChartBase");
+					copyStyleFromParent("mx.charts.chartClasses.CartesianChart");
+					copyStyleFromParent("mx.charts.chartClasses.PolarChart");
+					copyStyleFromParent("mx.charts.BarChart");
+					copyStyleFromParent("mx.charts.ColumnChart");
+					copyStyleFromParent("mx.charts.LineChart");
+					copyStyleFromParent("mx.charts.PieChart");
+					copyStyleFromParent("mx.charts.AxisRenderer");
+					copyStyleFromParent(".blockCategoryAxis");
+					copyStyleFromParent(".blockNumericAxis");
+					copyStyleFromParent(".linedNumericAxis");
+					copyStyleFromParent(".dashedNumericAxis");
+					copyStyleFromParent(".dashedCategoryAxis");
+					copyStyleFromParent(".hangingCategoryAxis");
+					copyStyleFromParent("mx.charts.GridLines");
+					copyStyleFromParent(".horizontalGridLines");
+					copyStyleFromParent("mx.charts.series.BarSeries");
+					copyStyleFromParent("mx.charts.series.ColumnSeries");
+					copyStyleFromParent("mx.charts.series.LineSeries");
+					copyStyleFromParent("mx.charts.series.PieSeries");
+				}
+			}
+			private function copyStyleFromParent(selector:String):void
+			{
+				var chartBaseStyle:CSSStyleDeclaration = styleManager.getStyleDeclaration(selector);
+				if (!chartBaseStyle && styleManager.parent)
+				{
+					var parentStyle:CSSStyleDeclaration = styleManager.parent.getStyleDeclaration(selector);
+					if (parentStyle)
+					{
+						styleManager.setStyleDeclaration(selector, parentStyle, false);
+					}
+				}
+			}
+			//事件过滤
+			private function filterFunc(value:Object):Object 
+			{ 
+				//需要过滤值
+				//var TCurrent:String=dateFormatter.format(value.DAY);
+				//var TCurrnetTime:Date=new Date((value.DAY+":00").toString());
+				//字符串转日期
+				var TCurrnetTime:Date=DateFormatter.parseDateString((value.DAY+":00"));//+":00"
+				//日期类型
+				//var TCurrnetTime:Date=value.DAY;
+				
+				var rst:Boolean=false;
+                if(TCurrnetTime.time-dataArrayStart.time ==TInternalVal) 
+				{
+				   if(TCurrnetTime.time>=startTime && TCurrnetTime.time<=endTime)					
+				   {
+					   //定义静态变量 当前时刻与起始时刻的插值 是否相等
+					   rst=true;
+				   }
+				   //每次都自增加
+				   TInternalVal +=TInternal*60000;
+				}	
+				
+				/* if(TCurrnetTime.time>=startTime && TCurrnetTime.time<=endTime && TCurrnetTime.time-dataArrayStart.time ==TInternalVal) 
+				{
+				   //定义静态变量 当前时刻与起始时刻的插值 是否相等
+				   rst=true;
+				   //每次都自增加
+				   TInternalVal +=TInternal*60000;
+				}	 */
+				
+				return rst;
+			} 
+			//筛选确定 取消掉
+			protected function btnOK_clickHandler(event:MouseEvent):void
+			{
+				//采样时间间隔
+				TInternal=cbxTInteral.selectedItem.data as Number;
+				//var stime:String=sDT.date_input.text;
+				//var etime:String=eDT.date_input.text;
+				
+				
+				arrC=new ArrayCollection(dataArray.source);
+				if(arrC !=null && arrC.length >0)
+				{		
+					//var strTmp:String=dateFormatter.format(arrC.getItemAt(0)["DAY"].toString());
+					//dataArrayStart=Number(strTmp);
+					
+					//数组的起始时间
+					//dataArrayStart=new Date((arrC.getItemAt(0)["DAY"]+":00").toString());
+					//字符串转日期
+					//dataArrayStart=DateFormatter.parseDateString((arrC.getItemAt(0)["DAY"]));//+":00"
+					//日期
+					dataArrayStart=arrC.getItemAt(0)["DAY"];
+					/* 
+					var s1:String=dateFormatter.format(stime);
+					var s2:String=dateFormatter.format(etime);
+					
+					if(Number(s1)>=Number(s2)){
+						Alert.show("时段输入有误，开始时间应早于结束时间");
+						return;
+					}	
+					startTime=Number(s1);
+					endTime=Number(s2); 
+					*/
+					
+					//必须要初始化
+					TInternalVal=0;//TInternal*60000;
+					//数据过滤
+					arrC.filterFunction=filterFunc;
+					arrC.refresh();
+					
+					myChart.dataProvider=arrC;
+				}
+			}
+			private function zoom():void{
+				//缩放到整个数据范围
+				//myChart.zoomToIndexes(0,20);
+				//myChart.zoomToIndexes(myChart.startIndex,myChart.endIndex);
+				//横轴为日期格式
+				//myChart.zoomToDates(myChart.startDate,myChart.endDate);
+			}
+			//采样时间触发事件
+			protected function cbxTInteral_changeHandler(event:IndexChangeEvent):void
+			{
+				functionFilter();
+			}
+			protected function functionFilter():void
+			{
+				//Alert.show(event.target.toString());		
+				//ComboBox(event.target).selectedItem.data
+				//采样时间间隔
+				TInternal=cbxTInteral.selectedItem.data as Number;
+				//var stime:String=sDT.date_input.text;
+				//var etime:String=eDT.date_input.text;								
+				
+				//sDT.getDateString()
+				var stime:Date=DateFormatter.parseDateString(sDT.getDateString());
+				var etime:Date=DateFormatter.parseDateString(eDT.getDateString());
+				if(arrC !=null && arrC.length >0)
+				{		
+					startTime=stime.time;
+					endTime=etime.time;
+					
+					
+					if(startTime>endTime){
+						//Alert.show("时段输入有误，开始时间应早于结束时间");
+						Alert.show("The time span is wrong,and the start time should be earlier than end time.");
+						return;
+					}
+					var numS:Number= myChart.startIndex;
+					var numE:Number=myChart.endIndex;
+					
+					var strS:String=arrC.getItemAt(numS)["DAY"];
+					var strE:String=arrC.getItemAt(numE)["DAY"];
+					
+					arrC=new ArrayCollection(dataArray.source);
+					//字符串转日期
+					dataArrayStart=DateFormatter.parseDateString((arrC.getItemAt(0)["DAY"]));
+					//必须要初始化
+					TInternalVal=0;//TInternal*60000;
+					//数据过滤
+					arrC.filterFunction=filterFunc;
+					arrC.refresh();
+					
+					myChart.dataProvider=arrC;
+				}
+			}
+			//关闭窗口
+			private function widgetClosedHandler(event:Event):void{
+				map.defaultGraphicsLayer.clear();				
+			}
+			
+			protected function cbxTInteral_closeHandler(event:DropDownEvent):void
+			{
+				functionFilter();
+			}
+			//查询
+			protected function btnok_clickHandler(event:MouseEvent):void
+			{
+				var attrs:Object=commonData.getItemAt(0);
+				var channelid:String=attrs["CHANNELID"];
+				var binstrlen:String=attrs["BINSTRLEN"];
+				var binstrval:String=attrs["BINSTRVAL"];
+				var regionid:String=attrs["REGIONCODE"];
+				var reghighid:String="";
+				//调用服务
+				onGetService(sDT.getDateString(),eDT.getDateString(),binstrlen,binstrval,regionid,configData.scmid);
+			}
+			
+		]]>
+	</fx:Script>
+	<viewer:WidgetTemplate id="wTemplate" closed="widgetClosedHandler(event)">
+		<s:VGroup width="100%" height="100%" paddingTop="5" paddingBottom="5" paddingLeft="3">
+			<s:HGroup horizontalAlign="center" width="100%" height="10">
+			  <s:Label id="lblTitle" fontSize="14"/>
+			</s:HGroup>
+			<s:HGroup paddingLeft="10" paddingRight="10" verticalAlign="middle" width="100%">
+				<s:Label text="Discharge(m³/s)"/>
+				<s:Spacer width="100%"/>
+					   
+			</s:HGroup>
+			
+			<amcharts:AmSerialChart dataUpdated="{zoom()}" id="myChart" width="100%" height="100%" categoryField="DAY" zoomOutText="All">	
+				<amcharts:graphs>
+					<amcharts:AmGraph title="Time" valueAxis="{v1}" valueField="WH" type="smoothedLine" bullet="round" hideBulletsCount="30"/>                        
+				</amcharts:graphs>
+				<amcharts:valueAxes>
+					<amcharts:ValueAxis id="v1" axisThickness="1"/>         
+				</amcharts:valueAxes>
+				
+				<amcharts:categoryAxis>
+					<amcharts:CategoryAxis gridCount="5" startOnAxis="true"/>
+				</amcharts:categoryAxis>
+				
+				<amcharts:chartCursor>
+					<amcharts:ChartCursor cursorPosition="mouse"/>                        
+				</amcharts:chartCursor>
+				<amcharts:chartScrollbar>
+					<amcharts:ChartScrollbar height="15"/>                        
+				</amcharts:chartScrollbar>
+			</amcharts:AmSerialChart>
+			<s:HGroup horizontalAlign="center" width="100%" verticalAlign="middle">
+				<s:Label text="From：" verticalAlign="bottom"/>								
+				<RDateTime:CustomizeDateField id="sDT" width="30%"/>
+				<s:Label text="To：" verticalAlign="bottom"/>								
+				<RDateTime:CustomizeDateField id="eDT" width="30%"/>
+				<s:Label text="Sample Span：" />
+				<s:ComboBox id="cbxTInteral" dataProvider="{cbxTInteralData}" selectedIndex="3" width="60" change="cbxTInteral_changeHandler(event)"/>
+				<s:Button id="btnok" label="Query" click="btnok_clickHandler(event)"/>
+			</s:HGroup>
+		</s:VGroup>	
+	</viewer:WidgetTemplate>
+</viewer:BaseWidget>

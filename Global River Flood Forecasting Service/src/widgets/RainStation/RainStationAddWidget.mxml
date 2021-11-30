@@ -1,0 +1,306 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx"
+				   xmlns:esri="http://www.esri.com/2008/ags"
+				   xmlns:viewer="com.esri.viewer.*" 
+				   xmlns:flash="flash.text.*"
+				   initialize="basewidget_initializeHandler()"
+				   widgetConfigLoaded="basewidget_widgetConfigLoaded()"
+				   xmlns:symbols="com.esri.ags.symbols.*">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<s:RadioButtonGroup id="radiogroup1" change="radiogroup1_changeHandler(event)"/>
+		<s:RadioButtonGroup id="radiogroup2" change="radiogroup2_changeHandler(event)"/>
+		<esri:SimpleMarkerSymbol id="sPoint" size="8" color="0x009933" style="triangle"/>
+		
+		<esri:SimpleMarkerSymbol color="0x000000" id="psmk"
+								 size="14"
+								 style="circle"/>
+		<esri:TextSymbol background="true" id="txtName"
+						 backgroundColor="0xFFFFFF"
+						 border="true"
+						 borderColor="0x000000"
+						 color="0x000000"
+						 placement="start"
+						 textAttribute="STNM"
+						 yoffset="10">
+			<flash:TextFormat bold="true" size="16"/>			
+		</esri:TextSymbol>
+		<esri:SimpleMarkerSymbol color="0xFFFFFF"  id="psmkdown"
+								 size="10"
+								 style="circle"/>		
+		
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.as3xls.xls.Cell;
+			import com.as3xls.xls.ExcelFile;
+			import com.as3xls.xls.Formatter;
+			import com.as3xls.xls.Sheet;
+			import com.esri.ags.Graphic;
+			import com.esri.ags.SpatialReference;
+			import com.esri.ags.geometry.Extent;
+			import com.esri.ags.geometry.Geometry;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.ags.symbols.CompositeSymbol;
+			import com.esri.ags.symbols.PictureMarkerSymbol;
+			import com.esri.ags.symbols.SimpleMarkerSymbol;
+			import com.esri.ags.symbols.Symbol;
+			import com.esri.ags.utils.WebMercatorUtil;
+			import com.esri.viewer.AppUtil;
+			import mx.rpc.events.ResultEvent;
+
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;			
+			
+			[Bindable]
+			private var styleAlpha:Number;
+			private var compositeS:CompositeSymbol;
+			[Bindable]
+			private var rstData:ArrayCollection;
+			private var reqUrl:String="";
+			private var sr:SpatialReference= new SpatialReference(4326);
+			private var myGraphicsLayer:GraphicsLayer;
+			private var ef:ExcelFile;
+			private var ba:ByteArray;
+			private var fr:FileReference;
+			private function basewidget_initializeHandler():void{
+				if (isPartOfPanel) 
+				{
+					this.percentWidth = this.percentHeight = 100;
+					wTemplate.percentWidth = wTemplate.percentHeight = 100;
+				}
+				else
+				{
+					wTemplate.width = 420;
+					wTemplate.height = 550;
+				}				
+			}
+			//读取配置文件
+			private function basewidget_widgetConfigLoaded():void{
+				if (configXML){
+					reqUrl = configXML.url;
+				}
+				
+				ef = new ExcelFile();
+				ba = new ByteArray();
+				fr = new FileReference();
+				styleAlpha=configData.styleAlpha;
+				myGraphicsLayer=new GraphicsLayer();
+				compositeS=new CompositeSymbol([psmk,txtName,psmkdown]);
+				myGraphicsLayer.symbol=compositeS as Symbol;
+				//myGraphicsLayer.symbol=sPoint as Symbol;				
+				map.addLayer(myGraphicsLayer);
+			}
+			//清除
+			protected function btnclear_clickHandler(event:MouseEvent):void
+			{
+				myGraphicsLayer.clear();
+			}
+			//导入			
+			protected function btnupload_clickHandler(event:MouseEvent):void
+			{
+				var ac:ArrayCollection=this.prjListDG.dataProvider as ArrayCollection;
+				if(ac.length>0)
+				{
+					try 
+					{
+						var str:String="";
+						var strstime:String="";
+						var stretime:String="";
+						for(var i:int=0;i<ac.length;i++)
+						{
+							var newobj:Object={
+								    ID:ac[i].ID,
+									STNM:ac[i].STNM,
+									X:ac[i].X,
+									Y:ac[i].Y};
+							if(i<(ac.length-1))
+								str+=JSON.stringify(newobj)+",";
+							else str+=JSON.stringify(newobj);
+						}
+						var params:URLVariables=new URLVariables();
+						params.SID=configData.scmid;
+						params.RAINS ="{\"rains\":["+str+"]}";
+						if(params.SID==null || params.SID=="")
+						{
+							Alert.show("请先创建方案或者选择方案");
+							return;
+						}
+						var url:String=reqUrl+"WinderHandler.aspx?act=addrains";
+						//trace(params);
+						AppUtil.req(url,params,onSubmitaddrains,onFault);
+						this.cursorManager.setBusyCursor();	
+					}
+					catch(err:Error)
+					{
+						this.cursorManager.removeBusyCursor();
+					}	
+				}	
+			}
+			private function onSubmitaddrains(event:ResultEvent):void
+			{
+				var strResult:String=event.result as String;
+				this.cursorManager.removeBusyCursor();	
+				if(strResult)
+				{
+					var obj:Object=JSON.parse(strResult);
+					if(obj.msg=="ok")
+					{
+						Alert.show("导入成功.","提示");						
+					}
+					else if(obj.msg=="error")
+					{
+						Alert.show("失败","提示");
+					}					
+				}
+			}
+			private function onFault(info:Object, token:Object = null) : void{                    
+				this.cursorManager.removeBusyCursor(); 
+			}
+			protected function btnselect_clickHandler(event:MouseEvent):void
+			{
+				//添加excel文件
+				importXLS();
+			}
+			private function importXLS():void { 
+				var fileFilter:FileFilter = new FileFilter("Excel (.xls)", "*.xls;*.xlsx;"); 
+				fr.addEventListener(Event.SELECT, selectXLS); 
+				fr.browse([fileFilter]); 
+			} 
+			private function selectXLS(e:Event):void {
+				fr = FileReference(e.target);				
+				rspath.text=fr.name;
+				fr.addEventListener(Event.COMPLETE, fileIn);
+				fr.load();
+			}
+			private function fileIn(e:Event):void {
+				myGraphicsLayer.clear();
+				ba = fr.data;
+				ef.loadFromByteArray(ba);				
+				var sheet:Sheet = ef.sheets[0];
+				var tCols:int = sheet.cols;
+				var tRows:int = sheet.rows;				
+				var txt:String = ef.sheets.length + " sheets; " + tCols + " columns; " + tRows + " rows";
+				
+				rstData = new ArrayCollection();
+				var objtmp:Object;
+				var myGraphicMarker:Graphic;
+				for(var i:int=1; i<=tRows; i++)
+				{
+					objtmp=new Object();
+					objtmp.ID=sheet.getCell(i,0).value;
+					objtmp.STNM=sheet.getCell(i,1).value;
+					objtmp.X=sheet.getCell(i,2).value;
+					objtmp.Y=sheet.getCell(i,3).value;
+					if(objtmp.ID !="" && objtmp.X!="" && objtmp.Y!="" )
+					{						
+						myGraphicMarker = new Graphic(WebMercatorUtil.geographicToWebMercator(new MapPoint(objtmp.X, objtmp.Y,sr)),null,objtmp);
+						myGraphicMarker.toolTip = objtmp.ID+"--"+objtmp.STNM+"--"+objtmp.X+"--"+objtmp.Y;						
+						myGraphicsLayer.add(myGraphicMarker);
+						rstData.addItem(objtmp);
+					}
+				}
+				if(rstData.length>0)
+				{
+					this.prjListDG.dataProvider=rstData;
+					zoomToVisibleGraphics();
+				}else
+				{
+					Alert.show("文件打开失败","提示");
+				}
+			}
+			//缩放到所有Graphic范围
+			private function zoomToVisibleGraphics():void
+			{
+				var env:Extent = null;
+				var grCollection:ArrayCollection = myGraphicsLayer.graphicProvider as ArrayCollection;
+				if (grCollection)
+				{
+					for each (var gr:Graphic in grCollection)
+					{
+						var geom:Geometry = gr.geometry;
+						var grEnv:Extent = null;
+						if (geom.type == Geometry.MAPPOINT)
+						{
+							grEnv = new Extent(MapPoint(geom).x, MapPoint(geom).y, MapPoint(geom).x, MapPoint(geom).y, sr);
+						}
+						else
+						{
+							grEnv = geom.extent;
+						}
+						if (env == null)
+						{
+							env = grEnv;
+						}
+						else
+						{
+							var minX:Number = (grEnv.xmin < env.xmin) ? grEnv.xmin : env.xmin;
+							var maxX:Number = (grEnv.xmax > env.xmax) ? grEnv.xmax : env.xmax;
+							var minY:Number = (grEnv.ymin < env.ymin) ? grEnv.ymin : env.ymin;
+							var maxY:Number = (grEnv.ymax > env.ymax) ? grEnv.ymax : env.ymax;							
+							env = new Extent(minX, minY, maxX, maxY, sr);
+						}
+					}
+				}				
+				map.initialExtent = env.expand(2);
+				map.zoomToInitialExtent();
+			}
+			protected function radiogroup1_changeHandler(event:Event):void
+			{
+				if(this.radiogroup1.selection.id=="STNM")
+					this.txtName.textAttribute="STNM";
+				else
+					this.txtName.textAttribute="ID";
+			}
+			protected function radiogroup2_changeHandler(event:Event):void
+			{
+				if(this.radiogroup2.selection.id=="open")
+					myGraphicsLayer.visible=true;
+				else
+					myGraphicsLayer.visible=false;
+			}
+		]]>
+	</fx:Script>
+	<viewer:WidgetTemplate id="wTemplate">
+		<s:VGroup width="100%" height="100%" paddingTop="0" paddingLeft="0">
+			<s:HGroup width="100%" paddingLeft="5" paddingRight="5" paddingTop="5" verticalAlign="middle">
+				<s:Label text="添加雨量站(.xls)"/>
+				<s:TextInput id="rspath" width="100%"/>
+				<s:Button id="btnselect" label="浏览" width="50" click="btnselect_clickHandler(event)"/>
+			</s:HGroup>
+			<s:HGroup width="100%" paddingLeft="5" paddingRight="5" paddingTop="5" verticalAlign="middle">
+				<s:Label text="标注类型："/>	
+				<!--fontSize="12"-->
+				<s:RadioButton label="标注站名" groupName="radiogroup1" selected="true"  id="STNM"/> 
+				<s:RadioButton label="标注站号" groupName="radiogroup1" id="ID"/> 
+			</s:HGroup>
+			<s:HGroup width="100%" paddingLeft="5" paddingRight="5" paddingTop="5" verticalAlign="middle">
+				<s:Label text="图层控制："/>
+				<s:RadioButton label="打开" groupName="radiogroup2" selected="true" id="open"/> 
+				<s:RadioButton label="关闭" groupName="radiogroup2" id="close"/> 
+			</s:HGroup>
+			<s:DataGrid width="100%" height="100%" id="prjListDG" alpha="{styleAlpha}"
+						chromeColor="0xF21515"
+						alternatingRowColors="[ #FFFFFF,#EFEFF0]">
+				<s:columns>
+					<s:ArrayList>
+						<s:GridColumn dataField="ID" headerText="站点编号" sortable="true" ></s:GridColumn>
+						<s:GridColumn dataField="STNM" headerText="站点名称"></s:GridColumn>
+						<s:GridColumn dataField="X" headerText="经度"></s:GridColumn>
+						<s:GridColumn dataField="Y" headerText="纬度"></s:GridColumn>						
+					</s:ArrayList>
+				</s:columns>
+				<s:typicalItem>
+					<fx:Object ID="站点编号" STNM="我我我我我我我我我" X="我我我我我" Y="我我我我我"></fx:Object>  
+				</s:typicalItem>			
+			</s:DataGrid>
+			<s:HGroup width="100%" paddingLeft="5" paddingRight="5" paddingTop="5" verticalAlign="middle" horizontalAlign="right">
+				<s:Button id="btnupload" label="导入" width="50" click="btnupload_clickHandler(event)"/>
+				<s:Button id="btnclear" label="清除" width="50" click="btnclear_clickHandler(event)"/>
+			</s:HGroup>
+		</s:VGroup>
+	</viewer:WidgetTemplate>
+</viewer:BaseWidget>

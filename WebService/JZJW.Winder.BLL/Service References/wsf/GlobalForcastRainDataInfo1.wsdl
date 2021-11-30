@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wsdl:definitions xmlns:ns2="http://schemas.xmlsoap.org/soap/http" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://serviceImpl.cxf.tsinghua.com/" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:ns1="http://Iservice.cxf.tsinghua.com/" name="GlobalForcastRainDataInfo" targetNamespace="http://serviceImpl.cxf.tsinghua.com/" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">
+  <wsdl:import namespace="http://Iservice.cxf.tsinghua.com/" location="http://101.6.54.28:8081/RainDataService/GlobalForcastRainDataInfo?wsdl=GlobalForcastRainDataInfo.wsdl" />
+  <wsdl:types />
+  <wsdl:binding name="GlobalForcastRainDataInfoSoapBinding" type="ns1:GlobalForcastRainDataInfo">
+    <soap:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <wsdl:operation name="GetUnParseForcastData">
+      <soap:operation soapAction="" style="document" />
+      <wsdl:input name="GetUnParseForcastData">
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output name="GetUnParseForcastDataResponse">
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="QueryForcastRainDataByLocation">
+      <soap:operation soapAction="" style="document" />
+      <wsdl:input name="QueryForcastRainDataByLocation">
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output name="QueryForcastRainDataByLocationResponse">
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="QueryForcastRainDataByRange">
+      <soap:operation soapAction="" style="document" />
+      <wsdl:input name="QueryForcastRainDataByRange">
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output name="QueryForcastRainDataByRangeResponse">
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="OrganizationInfo">
+      <soap:operation soapAction="" style="document" />
+      <wsdl:input name="OrganizationInfo">
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output name="OrganizationInfoResponse">
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="QueryLocation">
+      <soap:operation soapAction="" style="document" />
+      <wsdl:input name="QueryLocation">
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output name="QueryLocationResponse">
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="GetForcastRainData">
+      <soap:operation soapAction="" style="document" />
+      <wsdl:input name="GetForcastRainData">
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output name="GetForcastRainDataResponse">
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ObtainFactorInfo">
+      <soap:operation soapAction="" style="document" />
+      <wsdl:input name="ObtainFactorInfo">
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output name="ObtainFactorInfoResponse">
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ObtainFactors">
+      <soap:operation soapAction="" style="document" />
+      <wsdl:input name="ObtainFactors">
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output name="ObtainFactorsResponse">
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="QueryForcastRainData">
+      <soap:operation soapAction="" style="document" />
+      <wsdl:input name="QueryForcastRainData">
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output name="QueryForcastRainDataResponse">
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ObtainForcastRainData">
+      <soap:operation soapAction="" style="document" />
+      <wsdl:input name="ObtainForcastRainData">
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output name="ObtainForcastRainDataResponse">
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="QueryPointsInRange">
+      <soap:operation soapAction="" style="document" />
+      <wsdl:input name="QueryPointsInRange">
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output name="QueryPointsInRangeResponse">
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="GlobalForcastRainDataInfo">
+    <wsdl:port name="GlobalForcastRainDataInfoImplPort" binding="tns:GlobalForcastRainDataInfoSoapBinding">
+      <soap:address location="http://101.6.54.28:8081/RainDataService/GlobalForcastRainDataInfo" />
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>

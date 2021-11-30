@@ -1,0 +1,1378 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009"
+				   xmlns:s="library://ns.adobe.com/flex/spark"
+				   xmlns:mx="library://ns.adobe.com/flex/mx"
+				   xmlns:esri="http://www.esri.com/2008/ags"
+				   xmlns:viewer="com.esri.viewer.*"
+				   xmlns:components="com.esri.viewer.components.*"
+				   initialize="basewidget_initializeHandler()"
+				   xmlns:RDateTime="com.esri.viewer.components.RDateTime.*"
+				   xmlns:NetCDF="widgets.LeftNav.*"
+				   widgetConfigLoaded="basewidget_widgetConfigLoaded()">
+	<fx:Script>
+		<![CDATA[
+			import mx.controls.Alert;
+			import com.esri.ags.Graphic;
+			import com.esri.ags.events.DrawEvent;
+			import com.esri.ags.events.GeometryServiceEvent;
+			import com.esri.ags.geometry.Extent;
+			import com.esri.ags.geometry.Geometry;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.geometry.Polygon;
+			import com.esri.ags.symbols.SimpleFillSymbol;
+			import com.esri.ags.symbols.SimpleLineSymbol;
+			import com.esri.ags.symbols.SimpleMarkerSymbol;
+			import com.esri.ags.symbols.Symbol;
+			import com.esri.ags.tasks.supportClasses.IdentifyParameters;
+			import com.esri.ags.tasks.supportClasses.IdentifyResult;
+			import com.esri.ags.tools.DrawTool;
+			import com.esri.ags.utils.GeometryUtil;
+			import com.esri.ags.utils.GraphicUtil;
+			import com.esri.ags.utils.JSONUtil;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.ags.geometry.Polyline;
+
+			import com.esri.viewer.AppEvent;
+			import com.esri.viewer.AppUtil;
+			import com.esri.viewer.ViewerContainer;
+			import com.esri.viewer.components.FocusableImage;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.events.CloseEvent;
+			import mx.events.IndexChangedEvent;
+			import mx.formatters.DateFormatter;
+			import mx.rpc.AsyncResponder;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.http.HTTPService;
+			import mx.rpc.soap.WebService;
+			
+			import spark.collections.Sort;
+			import spark.collections.SortField;
+			import spark.components.supportClasses.ItemRenderer;
+			import spark.events.DropDownEvent;
+			import spark.events.IndexChangeEvent;//显示器的基类by任
+			
+			private var upstreamLayer:GraphicsLayer=new GraphicsLayer();
+			private var ws:WebService=new WebService();
+			//选中的河段是否为水库节点
+			private var riverSelect:String="";
+			private var cs:Number=0;
+			[Bindable]
+			private var netcdfAL:ArrayList;
+			[Bindable]
+			private var netcdfAC:ArrayCollection;
+			private var title:String="";
+			private var reqUrl:String="";
+			[Bindable]
+			private var pointLabel:String= "Select segment by point";
+			[Bindable]
+			private var rectangleLabel:String= "框选区域河网段";
+			private var dt:Date;
+			private var theScmShpList:ArrayCollection=new ArrayCollection();
+			private var MapServicesURL:String="";
+			//其他降雨数据服务地址
+			private var RainDataServiceURL:String="";
+			private var MapSercicesMain:String="";
+			private var selectedDrawingIcon:FocusableImage;
+			private var drawSymbol:Symbol;
+			private var resultMarkerSymbol:Symbol;
+			private var resultLineSymbol:Symbol;
+			private var resultFillSymbol:Symbol;
+			private var shareResults:Boolean;
+			
+			private var pointSearchTolerance:Number = 3;//6;
+			private var finishDrawing:Boolean;
+			private var strOrg:String;
+			private var fieldList:XMLList;
+			private var startTime:Number;
+			private var endTime:Number;
+			private var webserviceUrl:String="";
+			private var currentUname:String="";
+			private var username:String;
+
+			//排序和筛选函数
+			private var sortAC:Sort=new Sort();
+			//组织机构
+			[Bindable]
+			private var ArrayCOrg:ArrayCollection=new ArrayCollection();
+			private function basewidget_initializeHandler():void
+			{
+				percentWidth = percentHeight = 100;
+			}
+			
+			private function basewidget_widgetConfigLoaded():void{
+				
+				upstreamLayer.symbol=this.slsRed;
+				upstreamLayer.id="ApplyUpStream";
+				map.addLayer(upstreamLayer);
+				//当前的服务列表
+				netcdfAL = new ArrayList();
+				
+				if (configXML){
+					reqUrl = configXML.url;
+					title = configXML.labels.title || getDefaultString("leftNavTitle");
+					MapServicesURL=configXML.MapServicesURL;
+					//其他降雨服务地址
+					RainDataServiceURL=configXML.RainDataServiceURL;
+					//http://101.6.54.216:6080/arcgis/rest/services
+					MapSercicesMain=MapServicesURL.substring(0,MapServicesURL.lastIndexOf("/"));
+					//读取机构配置文件
+					fieldList=configXML.field;
+					//先添加一个空值
+					var obj1:Object={
+						labelCn:"",
+						dataEn:""				
+					};
+					ArrayCOrg.addItem(obj1);
+					for (var i :int = 0; i < fieldList.length(); i++){
+						var orgEn:String = fieldList[i].@org_en;
+						var orgCn:String = fieldList[i].@org_cn;
+						var obj:Object={
+							labelCn:orgCn,
+							dataEn:orgEn				
+						};
+						ArrayCOrg.addItem(obj);
+					}
+					
+					webserviceUrl=configXML.webserviceUrl;
+					//计算服务
+					ws.wsdl=webserviceUrl;
+					
+					ws.addEventListener(ResultEvent.RESULT,wsOnResult);
+					ws.addEventListener(FaultEvent.FAULT,wsOnFault);
+					
+				}	
+				//开始时间为当前日期的前30天
+				var d:Date=new Date();
+				//sDT.date=new Date(d.fullYear,d.month,Number(d.day-30));
+				
+				sDT.data=new Date(d.fullYear,d.month,Number(d.day-30));
+				//排序和筛选函数 按照名称字符编码排序
+				sortAC.fields=[new SortField("name",true,false)];
+				//按照数字大小排序
+				//sortAC.fields=[new SortField("dateY",true,true)];
+				//1秒后执行  ren添加
+				accordion.selectedIndex=1;
+				var timer:Timer=new Timer(500,1);
+				timer.addEventListener(TimerEvent.TIMER_COMPLETE,onTimerComplete);
+				timer.start();
+			}
+			private function onTimerComplete(event:TimerEvent):void{
+				AppEvent.addListener(AppEvent.DATA_PUBLISH,sharedDataUpdated);
+				accordion.selectedIndex=5;				
+			}
+			private function sharedDataUpdated(event:AppEvent):void{
+				var data:Object = event.data;
+				//当前方案名称
+				if(data.key=="currprjname"){
+					var ac:ArrayCollection=data.collection;
+					this.lblCurrWaterPrjName.text="       "+ac.getItemAt(0) as String;
+				}
+				//当前用户名称
+				if(data.key=="currusername"){
+					var act:ArrayCollection=data.collection;
+					//设置权限
+					if(act.getItemAt(0).toString() =="admin")
+					{
+						this.btnAuthority.visible=true;
+						this.btnExtent.visible=false;
+						this.btnFee.visible=true;
+					}
+					else
+					{
+						this.btnAuthority.visible=false;
+						this.btnExtent.visible=true;
+						this.btnFee.visible=true;
+					}
+					if(act.getItemAt(0).toString() !="空")
+					{
+						if(act.getItemAt(1).toString() =="2")
+							lblUser.text="       "+act.getItemAt(0)+"(Browse User)" as String;
+						else
+							lblUser.text="       "+act.getItemAt(0)+"(Compute User)" as String;
+						this.username=act.getItemAt(0).toString();
+						this.btnRegister.enabled=false;
+					}else
+					{
+						this.btnAuthority.visible=false;
+						this.btnExtent.visible=false;
+						this.btnFee.visible=false;
+					}					
+					//启动
+					if(act.getItemAt(1).toString() !="2")
+						cs=1;
+				}
+				//当前河道模拟方案名称				
+				if(data.key=="currNname"){
+					var acN:ArrayCollection=data.collection;
+					lblCurrNPrjName.text="       "+acN.getItemAt(0) as String;
+				}
+			}
+			//获取新方案ID
+			private function getWaterPrjNewId():void{
+				try{
+					var params:URLVariables = new URLVariables();
+					params.slnclass="w";
+					var url:String=reqUrl+"WinderHandler.aspx?act=scmnewid";
+					AppUtil.req(url,params,onGetWaterPrjNewIdResult);
+					this.cursorManager.setBusyCursor();	
+				}
+				catch(err:Error){
+					this.cursorManager.removeBusyCursor();
+					showError(String(err),"方案新编号");
+				}
+			}
+			//获取新方案ID 返回结果
+			private function onGetWaterPrjNewIdResult(event:ResultEvent):void{
+				var strResult:String=event.result as String;
+				this.cursorManager.removeBusyCursor();	
+				if(strResult){
+					var obj:Object=JSON.parse(strResult);
+					if(obj.id!=""){
+						var ac:ArrayCollection=new ArrayCollection();
+						ac.addItem(obj.id);
+						this.cursorManager.removeBusyCursor();	
+						//共享数据
+						this.addSharedData("newwaterprjid",ac);
+					}					
+				}
+			}
+			
+			private function widgetClosedHandler(event:Event):void{
+				
+			}
+			
+			private function widgetOpenedHandler(event:Event):void{
+			}
+			//新建方案
+			protected function btnWaterPrjNew_clickHandler(event:MouseEvent):void{
+				//运行 新建水文预报方案
+				AppEvent.dispatch(AppEvent.WIDGET_RUN,ViewerContainer.getInstance().getWidgetId("New Scenario"));
+				//1秒钟之后执行代码
+				var timer:Timer = new Timer(1000, 1);
+				timer.addEventListener(TimerEvent.TIMER_COMPLETE, onStartWaterPrjNewId);
+				timer.start();
+			}
+			//获取新方案ID
+			private function onStartWaterPrjNewId(event:TimerEvent):void{
+				getWaterPrjNewId();
+			}
+			
+			private function activateDrawTool(value:String):void{
+				finishDrawing = false;
+				if(this.riverSelect=="1")
+					map.defaultGraphicsLayer.clear();
+				this.setMapNavigation("","");
+				
+				var status:String;
+				switch (value){
+					case DrawTool.MAPPOINT:{
+						status = pointLabel;
+						drawSymbol = new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_CIRCLE, 15, 0x3FAFDC, 1);
+						break;
+					}
+					case DrawTool.EXTENT:{
+						status = rectangleLabel;
+						drawSymbol = new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, 0x3FAFDC, 0.5, new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, 0x3FAFDC, 1, 1));
+						break;
+					}
+				}
+				setMapAction(value, status, drawSymbol, searchDrawEnd);
+			}
+			
+			
+			private function searchDrawEnd(event:DrawEvent):void
+			{
+				var geom:Geometry = event.graphic.geometry;
+				
+				if (geom is Polygon && GeometryUtil.polygonSelfIntersecting(geom as Polygon)){
+					geometryService.simplify([ geom ]);
+				}
+				else{
+					if (geom.type == Geometry.MAPPOINT){
+						geom = createExtentAroundMapPoint(geom as MapPoint, pointSearchTolerance);
+					}
+					
+					queryFeaturesGraphical(geom);
+				}
+			}
+			
+			private function createExtentAroundMapPoint(centerPoint:MapPoint, tolerance:Number):Extent{
+				var screenPoint:Point = map.toScreen(centerPoint as MapPoint);
+				
+				var upperLeftScreenPoint:Point = new Point(screenPoint.x - tolerance, screenPoint.y - tolerance);
+				var lowerRightScreenPoint:Point = new Point(screenPoint.x + tolerance, screenPoint.y + tolerance);
+				
+				var upperLeftMapPoint:MapPoint = map.toMap(upperLeftScreenPoint);
+				var lowerRightMapPoint:MapPoint = map.toMap(lowerRightScreenPoint);
+				
+				return new Extent(upperLeftMapPoint.x, upperLeftMapPoint.y, lowerRightMapPoint.x, lowerRightMapPoint.y, map.spatialReference);
+			}
+			
+			private function geometryService_simplifyCompleteHandler(event:GeometryServiceEvent):void{
+				queryFeaturesGraphical(event.result[0] as Polygon);
+			}
+			
+			private function geometryService_faultHandler(event:FaultEvent):void{
+				showError(event.fault.toString());
+			}
+			
+			private function queryFeaturesGraphical(geom:Geometry):void{
+				var identifyParams:IdentifyParameters = new IdentifyParameters();
+				identifyParams.layerOption = IdentifyParameters.LAYER_OPTION_VISIBLE;
+				identifyParams.returnGeometry = true;
+				identifyParams.tolerance = pointSearchTolerance;
+				identifyParams.width = map.width;
+				identifyParams.height = map.height;
+				identifyParams.geometry = geom;
+				identifyParams.mapExtent = map.extent;
+				identifyParams.spatialReference = map.spatialReference;
+				identifyTask.execute(identifyParams, new AsyncResponder(myResultFunction, myFaultFunction));
+			}
+			
+			private function myResultFunction(results:Array, token:Object = null):void {     
+				//清空
+				//map.defaultGraphicsLayer.clear();
+				//数据共享
+				var ac:ArrayCollection=new ArrayCollection();
+				if (results && results.length > 0){
+					//map.defaultGraphicsLayer.symbol=this.slsIdentify;
+					for (var i:int = 0; i < results.length; i++) { 
+						var result:IdentifyResult = results[i];
+						if(result.layerName!=""){
+							var graphic:Graphic=result.feature;
+							graphic.addEventListener(MouseEvent.CLICK,onSelGraphicClickHandler);
+							/*20150131修改
+							var newObj:Object=result.feature.attributes;
+							newObj.lyrid=result.layerId;
+							newObj.lyrname=result.layerName;							
+							map.defaultGraphicsLayer.add(result.feature);
+							*/
+							//修改
+							switch(this.riverSelect)
+							{
+								case "1":
+									graphic.attributes["NODETYPE"]="GS";
+									graphic.attributes["RNAME"]="";									
+									graphic.symbol=this.slsIdentify;
+									map.defaultGraphicsLayer.add(graphic);									
+									break;
+								case "2":
+									//水库
+									//graphic.attributes["NODETYPE"]="RS";
+									graphic.symbol=this.slsIdentifyReservoir;
+									ac=new ArrayCollection();
+									ac.addItem(graphic);
+									addSharedData("ReservoirN",ac);
+									AppEvent.dispatch(AppEvent.WIDGET_RUN,ViewerContainer.getInstance().getWidgetId("水库名称"));
+									break;
+							}							
+							//map.defaultGraphicsLayer.add(graphic);
+						}
+					}
+				}
+			}
+			
+			private function onSelGraphicClickHandler(event:MouseEvent):void{
+				var graphic:Graphic=event.currentTarget as Graphic;
+				map.defaultGraphicsLayer.remove(graphic);
+			}
+			
+			
+			private function myFaultFunction(error:Object, token:Object = null):void{
+				this.showError(String(error),"区域选择");
+			}
+			
+			private function doShapeDel():void{
+				finishDrawing = true;				
+				this.setMapAction(null,null,null,null);
+			}
+			//提交河段选择
+			private function btnWaterPrjShapeSelClickHandler():void{
+				finishDrawing = true;				
+				this.setMapAction(null,null,null,null);
+				
+				if(configData.scmid==""||configData.scmid==null){
+					//Alert.show("提交的河网区域没有指定方案","提交河网区域");
+					Alert.okLabel="OK";
+					Alert.show("You do not create Scenario,please create a Scenario.","Information");
+					return;
+				}
+				//判断是否有definedload  这地方有问题
+				if(map.defaultGraphicsLayer.numGraphics>0){		
+					try 
+					{
+						var params:URLVariables=new URLVariables();
+						params.sid=configData.scmid;
+						var url:String=reqUrl+"WinderHandler.aspx?act=IsExitShape";
+						AppUtil.req(url,params,onSel,onFault);
+						this.cursorManager.setBusyCursor();	
+					}
+					catch(err:Error){
+						this.cursorManager.removeBusyCursor();
+					}	
+
+    			}else{
+				       //Alert.show("无选择的河网区域","河网区域选择");
+					   Alert.okLabel="OK";
+					   Alert.show("You have not selected a segment","Information");
+			          }
+			}
+			//河道模拟--提交河段选择
+			private function btnRShapeSelClickHandler():void{
+				finishDrawing = true;				
+				this.setMapAction(null,null,null,null);
+				
+				if(configData.scmid==""||configData.scmid==null){
+					//Alert.show("提交的河网区域没有指定方案","提交河道选择区域");
+					Alert.okLabel="OK";
+					Alert.show("You have not created a scenario","Information");
+					return;
+				}
+				//判断是否有definedload  这地方有问题
+				if(map.defaultGraphicsLayer.numGraphics>0){		
+					try 
+					{
+						var params:URLVariables=new URLVariables();
+						//方案ID号
+						params.sidR=configData.scmid;
+						var url:String=reqUrl+"WinderHandler.aspx?act=IsExitShapeR";
+						AppUtil.req(url,params,onSelR,onFault);
+						this.cursorManager.setBusyCursor();	
+					}
+					catch(err:Error){
+						this.cursorManager.removeBusyCursor();
+					}	
+					
+				}else{
+					//Alert.show("无选择的河道区域","河道区域选择");
+					Alert.okLabel="OK";
+					Alert.show("You have not selected a segment","Information");
+				}
+			}
+			
+			//气象预报模拟
+			private function btnHistoryHandler():void{
+				//运行 气象预报模拟历史数据
+				AppEvent.dispatch(AppEvent.WIDGET_RUN,ViewerContainer.getInstance().getWidgetId("Meteorological Simulation"));
+				//获取服务器中NetCDF文件夹下的文件名称及地址
+				var netcdf:NetCDF;
+				/*
+				for each (var bookmarkXML:XML in bookmarkList)
+				{
+					netcdf = parseNetCDF(bookmarkXML);
+					if (netcdf)
+					{
+						netcdfAL.addItem(netcdf);
+					}
+				}
+				*/
+			}
+			
+			private function parseNetCDF(bookmarkXML:XML):NetCDF
+			{
+				var netcdf:NetCDF;
+				netcdf.name="";
+				netcdf.url="";		
+				
+				return netcdf;
+			}
+
+			
+			//提交
+			private function onSel(event:ResultEvent):void{
+				this.cursorManager.removeBusyCursor();	
+				var strResult:String=event.result as String;
+				if(strResult)
+				{
+					this.cursorManager.removeBusyCursor();
+					var obj:Object=JSON.parse(strResult);
+					if(obj.msg=="ok"){
+						//覆盖提示 ren
+						//Alert.yesLabel="继续";
+						//Alert.noLabel="取消";
+						//Alert.show("已存在河段选择，是否覆盖原有河段选择？","提示",Alert.YES|Alert.NO,this,Alert.showClickHandler);	
+						Alert.yesLabel="Yes";
+						Alert.noLabel="No";
+						Alert.show("Are you sure that this segment replace the segment you have selected？","Information",Alert.YES|Alert.NO,this,ClickHandler);
+
+					}
+					else{
+						OnSubmitSel();
+					}
+				}
+				
+			}
+			//河道模拟--提交
+			private function onSelR(event:ResultEvent):void{
+				this.cursorManager.removeBusyCursor();	
+				var strResult:String=event.result as String;
+				if(strResult)
+				{
+					this.cursorManager.removeBusyCursor();
+					var obj:Object=JSON.parse(strResult);
+					if(obj.msg=="ok"){
+						//覆盖提示 ren
+						//Alert.yesLabel="继续";
+						//Alert.noLabel="取消";
+						//Alert.show("已存在河道选择，是否覆盖原有河道选择？","提示",Alert.YES|Alert.NO,this,Alert.showClickHandlerR);	
+						Alert.yesLabel="Yes";
+						Alert.noLabel="No";
+						Alert.show("Are you sure that this segment replace the segment you have selected ？","Information",Alert.YES|Alert.NO,this,ClickHandlerR);
+						
+					}
+					else{
+						OnSubmitSelR();
+					}
+				}
+				
+			}
+			//ren覆盖
+			private function ClickHandler(evt:CloseEvent):void
+			{
+				if(evt.detail ==Alert.YES)
+				{
+					OnSubmitSel();
+				}
+			}
+			//河道模拟--ren覆盖
+			private function ClickHandlerR(evt:CloseEvent):void
+			{
+				if(evt.detail ==Alert.YES)
+				{
+					OnSubmitSelR();
+				}
+			}
+			//提交河段段选择
+			private function OnSubmitSel():void
+			{	
+					var graphicArray:ArrayCollection=map.defaultGraphicsLayer.graphicProvider as ArrayCollection;
+					var str:String="";
+					//只能选中一条河段==1   可以选多条  
+					if(graphicArray.length >0)
+					{
+						//选中的流域面积要小于150平方公里
+						var tmp:Graphic=graphicArray.getItemAt(0) as Graphic;
+						var tmpattrs:Object=tmp.attributes;
+						
+						if(currentUname=="EMSRV")
+						{
+							//取消150平方公里限制
+							if(Number(tmpattrs.UPSUBAREA)>500)
+							{
+							  Alert.okLabel="OK";
+							  Alert.show("You must select the upsubarea < 500 square kilometers,so you can select other segment","Information");
+							  map.defaultGraphicsLayer.clear();
+							  return;
+							}
+						}
+						
+						for(var i:int=0;i<graphicArray.length;i++){
+							var gra:Graphic=graphicArray.getItemAt(i) as Graphic;
+							var attrs:Object=gra.attributes;
+							
+							var newobj:Object={
+								    sid:configData.scmid,	
+									/* regioncode:attrs.REGIONCODE, */
+									/* regionid:attrs.REGIONID, */
+									username:currentUname,
+									regionid:attrs.REGIONCODE,
+									binstrlen:attrs.BINSTRLEN,
+									binstrval:attrs.BINSTRVAL,
+									nodetype:attrs.NODETYPE,
+									/* reghighid:attrs.REGHIGHID, */	
+									reghighid:"",
+									rname:attrs.RNAME,
+									shape:JSONUtil.encode(gra.geometry)
+							};
+							//20141115若河段前三位是419则退出
+							/*
+							if(newobj["regionid"].toString().substring(0,3)=="419")
+							{
+								Alert.okLabel="OK";
+								Alert.show("Sorry,the segment you have selected has some problems.We are trying to solve this problem.Please select other segment.","Information");
+								map.defaultGraphicsLayer.clear();
+								return;
+							}
+							*/
+							
+							
+							if(i<(map.defaultGraphicsLayer.numGraphics-1))
+								str+=JSON.stringify(newobj)+",";
+							else str+=JSON.stringify(newobj);
+						}
+						
+						var ext:Extent=	GraphicUtil.getGraphicsExtent(graphicArray.toArray());
+						var extStr:String=""+ext.xmax+";"+ext.xmin+";"+ext.ymax+";"+ext.ymin;
+						
+						try {
+							var params:URLVariables=new URLVariables();
+							params.rslt="{\"features\":["+str+"],\"extent\":"+extStr+"}";
+							var url:String=reqUrl+"WinderHandler.aspx?act=addrgnsel";
+							trace(params.rslt);
+							AppUtil.req(url,params,onSubmitWaterPrjSelectedShape,onFault,"POST",false,"text",600000);	
+							this.cursorManager.setBusyCursor();	
+							//清空
+							//map.defaultGraphicsLayer.clear();
+							
+						}
+						catch(err:Error){
+							this.cursorManager.removeBusyCursor();
+						}	
+					}else
+					{
+						Alert.okLabel="OK";
+						Alert.show("You have select one outlet segment,and if you want cacel it you can select it again or click the 'Region Segment Delect' button","Information");
+					}
+			}
+			//河道模拟---提交河段段选择
+			private function OnSubmitSelR():void
+			{	
+				var graphicArray:ArrayCollection=map.defaultGraphicsLayer.graphicProvider as ArrayCollection;
+				var str:String="";
+				for(var i:int=0;i<graphicArray.length;i++){
+					var gra:Graphic=graphicArray.getItemAt(i) as Graphic;
+					var attrs:Object=gra.attributes;
+					//提交的河段参数信息 根据后台要求进行修改20140629
+					var newobj:Object={
+						    sid:configData.scmid,	
+							/* regioncode:attrs.REGIONCODE, */
+							/* regionid:attrs.REGIONID, */
+							regionid:attrs.REGIONCODE,
+							binstrlen:attrs.BINSTRLEN,
+							binstrval:attrs.BINSTRVAL,
+							/* reghighid:attrs.REGHIGHID, */	
+							reghighid:"",
+							shape:JSONUtil.encode(gra.geometry)
+					};
+					
+					if(i<(map.defaultGraphicsLayer.numGraphics-1))
+						str+=JSON.stringify(newobj)+",";
+					else str+=JSON.stringify(newobj);
+				}
+				
+				//var ext:Extent=	GraphicUtil.getGraphicsExtent(graphicArray.toArray());
+				//var extStr:String=""+ext.xmax+";"+ext.xmin+";"+ext.ymax+";"+ext.ymin;
+				
+				try {
+					var params:URLVariables=new URLVariables();
+					//params.rslt="{\"features\":["+str+"],\"extent\":"+extStr+"}";
+					params.rslt="{\"features\":["+str+"]}";
+					var url:String=reqUrl+"WinderHandler.aspx?act=addrgnselR";
+					trace(params.rslt);
+					AppUtil.req(url,params,onSubmitWaterPrjSelectedShape,onFault,"POST",false,"text",600000);	
+					this.cursorManager.setBusyCursor();	
+					//清空
+					//map.defaultGraphicsLayer.clear();
+					
+				}
+				catch(err:Error){
+					this.cursorManager.removeBusyCursor();
+				}				
+			}
+			private function onSubmitWaterPrjSelectedShape(event:ResultEvent):void
+			{
+				var strResult:String=event.result as String;
+				this.cursorManager.removeBusyCursor();	
+				if(strResult)
+				{
+					var obj:Object=JSON.parse(strResult);
+					if(obj.msg=="ok")
+					{
+						var graphicArray:ArrayCollection=map.defaultGraphicsLayer.graphicProvider as ArrayCollection;
+						var t:Graphic=graphicArray.getItemAt(0) as Graphic;
+						var ts:Object=t.attributes;
+						dt=new Date();
+						var dtA:Date=new Date();
+						var dtB:Date=new Date();
+						dtA.setDate(dt.date-2);
+						dtB.setDate(dt.date+3);
+					    /*
+						var st:String="The information of the scenario is:"+"\r\n"+"REGIONCODE："+ts.REGIONCODE +"\r\n"+"BINSTRLEN:"+ts.BINSTRLEN+"\r\n"+"BINSTRVAL:"+ts.BINSTRVAL+"\r\n"+"UPSUBAREA:"+ts.UPSUBAREA+
+							"  Square Kilometers"+"\r\n"+"SIMULATION SART TIME:"+dateTimeFormatter.format(dtA)+"\r\n"+"SIMULATION END TIME:"+dateTimeFormatter.format(dtB)+
+							"\r\n"+"HYDROALMODEL:"+"Xin'AnJiang Model"+"\r\n"+"Does the scenario begin to calculate？";
+						*/
+						var st:String="The information of the scenario is:"+"\r\n"+"Segment Count: "+graphicArray.length+"\r\n"+"UPSTREAM BASIN AREA: "+ts.UPSUBAREA+
+							" K㎡"+"\r\n"+"SIMULATION START TIME: "+dateTimeFormatter.format(dtA)+"\r\n"+"SIMULATION END TIME: "+dateTimeFormatter.format(dtB)+
+							"\r\n"+"HYDROLOGICAL MODEL: "+"Xin'AnJiang Model"+"\r\n"+"Does the scenario begin to calculate？";
+						Alert.yesLabel="Yes";
+						Alert.noLabel="No";
+						Alert.show(st,"Result",Alert.YES|Alert.NO,this,UserClickHandlerCal)
+					}
+					else if(obj.msg=="error")
+					{
+						Alert.show("Failed","Information");
+						map.defaultGraphicsLayer.clear();
+					}					
+			     }
+			}
+			//是否提交计算
+			private function UserClickHandlerCal(evt:CloseEvent):void
+			{
+				if(evt.detail ==Alert.YES)
+				{
+					btnCal_clickHandler();
+					this.cursorManager.setBusyCursor();
+					map.defaultGraphicsLayer.clear();
+				}
+			}
+			//计算部分
+			private function btnCal_clickHandler():void{
+				var ScID:String=configData.scmid;
+				if(ScID !=null && ScID!="")
+				{
+					//查询指定方案出口河段属性信息
+					var url:String=reqUrl+"WinderHandler.aspx?act=scmrgnlist";
+					var params:URLVariables = new URLVariables();
+					params.sid=ScID;
+					AppUtil.req(url,params,onSelListResult,onFault);
+				}
+			}
+			////查询指定方案出口河段属性信息
+			private function onSelListResult(event:ResultEvent):void
+			{
+				//this.cursorManager.removeBusyCursor();	
+				var strResult:String=event.result as String;
+				
+				if(strResult)
+				{
+					//解析Json字符串
+					var objTmp:Object=JSON.parse(strResult);
+					if(objTmp!=null)
+					{
+						var rows:Array=objTmp.rows as Array;
+						//清空
+						theScmShpList.removeAll();
+						if(rows!=null && rows.length>0)
+						{
+							for(var i:int=0;i<rows.length;i++)
+							{
+								var sln:Object=rows[i];
+								theScmShpList.addItem(sln);
+							}
+							if(theScmShpList.length>0)
+							{
+								//多方案
+								//ws.getOperation("SelectAvailableUser").send(obj.SID,"hydroglobal",theScmShpList,obj.STARTTIME,obj.ENDTIME,obj.RAINFALLDATA,obj.RUNOFFMODEL,obj.RIVERMODEL);
+								var dtA:Date=new Date();
+								var dtB:Date=new Date();
+								dtA.setDate(dt.date-2);
+								dtB.setDate(dt.date+3);
+								//ws.getOperation("SelectAvailableUser").send(configData.scmid,"hydroglobal",theScmShpList,dateTimeFormatter.format(dtA),dateTimeFormatter.format(dtB),"新安江模型","新安江模型","新安江模型","4","1");
+								ws.loadWSDL();
+							}
+						}else
+						{
+							Alert.okLabel="OK";
+							Alert.show("No","Information");
+							return;
+						}
+					}
+				}
+				else
+				{
+					this.cursorManager.removeBusyCursor();	
+				}
+			}
+			//计算返回结果
+			private function wsOnResult(event:ResultEvent):void{  
+				this.cursorManager.removeBusyCursor();	
+				var strResult:String=event.result as String;
+				if(strResult)
+				{
+					this.cursorManager.removeBusyCursor();
+					var obj:Object=JSON.parse(strResult);
+					if(obj.msg=="ok"){
+						Alert.okLabel="OK";
+						Alert.show("The scenario you submitted is being calculated on GloF3S Platform now. Please check the result a few minutes later","Information");
+						//defaultGraphicsLayerSelect.clear();
+						//upstreamLayer.clear();
+					}
+					else{
+						Alert.okLabel="OK";
+						Alert.show("It has no valid user to user.Please try again later！","Information");
+					}
+				}
+			}  
+			private function wsOnFault(event:FaultEvent):void
+			{
+				event.currentTarget.toString();
+				this.cursorManager.removeBusyCursor();				
+			}
+			private function onFault(info:Object, token:Object = null) : void
+			{                    
+				this.cursorManager.removeBusyCursor(); 
+				map.defaultGraphicsLayer.clear();
+			}
+			
+			protected function btnWaterParams_clickHandler(event:MouseEvent):void
+			{
+				if(configData.scmid !=null && configData.scmid !="")
+					ViewerContainer.getInstance().runWidget("Set Parameters");
+				else
+					Alert.show("Please select a Scenario","Information");
+			}
+			//河道模拟参数设置
+			protected function btnNNewSchemaSet_clickHandler(event:MouseEvent):void
+			{
+				ViewerContainer.getInstance().runWidget("河道模拟参数设置");
+			}
+			//是否可见
+			protected function ckBox_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+			   
+			   if(map.getLayer("HisLayer") !=null)
+			   {
+				   if(this.ckBox.selected ==true)
+				   {
+					   //this.ckBox.label="可见";
+					   map.getLayer("HisLayer").visible=true;
+				   }else
+				   {
+					   //this.ckBox.label="不可见";
+					   map.getLayer("HisLayer").visible=false;
+				   }
+			   }
+			}
+			//显示NetCDF当前时态影像
+			private function showNetCDF(event:Event):void
+			{
+				//运行 气象预报模拟历史数据
+				//AppEvent.dispatch(AppEvent.WIDGET_RUN,ViewerContainer.getInstance().getWidgetId("气象预报"));
+				//ViewerContainer.getInstance().runWidget("气象预报");
+
+				//this.cursorManager.setBusyCursor();
+				var netcdf:NetCDF = ItemRenderer(event.target).data as NetCDF;
+				if (netcdf)
+				{
+					//获取当前服务地址
+					var arr:ArrayCollection=new ArrayCollection();
+					arr.addItem(netcdf.url);
+					this.addSharedData("ServiceURL",arr);
+					//var data:Object={key:"ServiceURL",collection:newObj};
+					//AppEvent.dispatch(AppEvent.DATA_PUBLISH,data);
+					AppEvent.dispatch(AppEvent.WIDGET_RUN,ViewerContainer.getInstance().getWidgetId("Meteorological Simulation"));
+					
+				}
+				
+			}
+		    //Accordion切换页签
+			protected function accordion_changeHandler(event:IndexChangedEvent):void
+			{
+			   switch (accordion.selectedIndex)
+			   {
+				   case 4:
+				   {
+					   ViewerContainer.getInstance().runWidget("Scenario Management");
+					   break;
+				   }
+				   //气象预报
+				   case 0:
+				   {
+					   netcdfAC=new ArrayCollection();
+					   GetRainDataFromOther();
+					   //获取服务列表 http://localhost:6080/arcgis/rest/services/NetCDF?f=json;
+					   var httpService:HTTPService=new HTTPService();
+					   httpService.url=MapServicesURL;
+					   httpService.method="GET";
+
+					   httpService.addEventListener(ResultEvent.RESULT,httpServiceResult);
+					   httpService.addEventListener(FaultEvent.FAULT,httpServiceFault);
+				
+					   httpService.send();					   
+					   
+					   //获取服务列表
+					   function httpServiceResult(event:ResultEvent):void
+					   {
+						   var obj:Object=JSON.parse(event.result as String);
+						   var str:String;
+						  
+						   var t:NetCDF;
+						   for each (var i:Object in obj.services) 
+						   {
+							   t=new NetCDF();
+							   //t.name=i.name.split("/")[1];
+							   //去掉M
+							   str=i.name.split("/")[1].toString().substr(1);
+							   t.name=str.substr(0,10)+"   "+str.substr(10);
+							   t.org=str.substr(10);
+							   t.dateY=Number(t.name.substr(0,10));
+							   t.url=MapSercicesMain+"/"+i.name+"/MapServer";
+							   //先放到集合中
+							   netcdfAC.addItem(t);
+							   //netcdfAL.addItem(t);
+						   }
+						   netcdfAC.sort=sortAC;
+						   netcdfAC.refresh();
+						   //netcdfAL.source=netcdfAC.source;
+					   }
+					   function httpServiceFault(event:FaultEvent):void
+					   {
+						   var obj:String=event.toString();
+					   }
+					   
+					   break;
+				   }
+			   }
+			   if(cs==1)
+			   {
+				   var timer:Timer=new Timer(100,1);
+				   timer.addEventListener(TimerEvent.TIMER_COMPLETE,onTimerCompletecs);
+				   timer.start();
+			   }
+			}
+			   //从其他地方获取降雨数据20150129
+			   private function GetRainDataFromOther():void
+			   {
+				   var netcdf:NetCDF=new NetCDF();
+				   netcdf.url=RainDataServiceURL;
+				   netcdf.name="Other_ecmwf_all";
+				   netcdf.org="ecmwf";
+				   netcdf.dateY=2014060100;
+				   netcdfAC.addItemAt(netcdf,0);
+				   
+			   }
+			   private function onTimerCompletecs(event:TimerEvent):void
+			   {
+				   this.enable(); 
+			   }
+			//当前选中机构
+			   protected function cbxOrg_closeHandler(event:DropDownEvent):void
+			   {
+				   //当前选中的机构代码
+				   //strOrg=ComboBox(event.target).selectedItem.dataEn;
+			   }
+			   //检索
+			   protected function btnOK_clickHandler(event:MouseEvent):void
+			   {
+				   //var stime:String=sDT.date_input.text;
+				  //var etime:String=eDT.date_input.text;
+				   var stime:String=sDT.getDateString();
+				   var etime:String=eDT.getDateString();
+				   
+				   var dateFormatter:DateFormatter = new DateFormatter(); 
+				   dateFormatter.formatString = "YYYYMMDDJJ";
+				   
+				   var s1:String=dateFormatter.format(stime);
+				   var s2:String=dateFormatter.format(etime);
+				   if(Number(s1)>=Number(s2)){
+					   
+					   Alert.show("预报时段输入有误，开始时间应早于结束时间");
+					   return;
+				   }	
+				   startTime=Number(s1);
+				   endTime=Number(s2);
+				   if(cbxOrg.selectedItem==null)
+					   strOrg="";
+				   else
+					   strOrg=cbxOrg.selectedItem.dataEn;
+				   netcdfAC.filterFunction=filterFunc;
+				   netcdfAC.refresh();				   
+			   }
+			   //服务文件名称过滤函数
+			   private function filterFunc(value:Object):Boolean
+			   {
+				   //从其他地方获取的降雨数据一直存在
+				   if(value.name=="Other_ecmwf_all")
+					   return true;
+				   else if(value.dateY >=startTime && value.dateY <=endTime)
+				   {
+					   if(strOrg =="")
+						   return true
+					   else if(value.org==strOrg)
+					   {
+						   return true;
+					   }
+					   else
+					   {
+						   return false;
+					   }
+				   }
+				   else
+				   {
+					   return false;
+				   }
+			   }
+			   //登陆窗口
+			   protected function btnLogin_clickHandler(event:MouseEvent):void
+			   {
+				   AppEvent.dispatch(AppEvent.WIDGET_RUN,ViewerContainer.getInstance().getWidgetId("User Login"));
+				   
+			   }
+			   //注销
+			   protected function btnClean_clickHandler(event:MouseEvent):void
+			   {
+				   //覆盖提示 ren
+				   Alert.yesLabel="Yes";
+				   Alert.noLabel="No";				  
+				   //Alert.show("您确定注销当前用户？","提示",Alert.YES|Alert.NO,this,Alert.showUserClickHandler);	
+				   Alert.show("Are you sure to logoff？","Information",Alert.YES|Alert.NO,this,UserClickHandler);
+			   }
+			   //用户注册窗口
+			   protected function btnRegister_clickHandler(event:MouseEvent):void
+			   {
+				   AppEvent.dispatch(AppEvent.WIDGET_RUN,ViewerContainer.getInstance().getWidgetId("User Register"));				   
+			   }
+			   //当前用户注销
+			   private function UserClickHandler(evt:CloseEvent):void
+			   {
+				   if(evt.detail ==Alert.YES)
+				   {			   
+					   this.btnRegister.enabled=true;
+					   lblUser.text="";
+					   this.username="";
+					   //失效
+					   this.Disenable();
+					   this.btnExtent.visible=false;	
+					   this.btnFee.visible=false;
+					   cs=0;
+					   var ack:ArrayCollection=new ArrayCollection();
+					   ack.addItem("空");
+					   ack.addItem("2");
+					   addSharedData("currusername",ack);
+				   }
+			   }
+			   //根据用户失效
+			   private function Disenable():void
+			   {
+				   this.imgNewscm.enabled=false;
+				   this.imgSet.enabled=false;
+				   
+				   this.PSelect.enabled=false;
+				   this.RNSelect.enabled=false;				   
+				   this.PRDelete.enabled=false;
+				   this.PRSent.enabled=false;
+			   }
+			   //根据用户启用
+			   private function enable():void
+			   {
+				   this.imgNewscm.enabled=true;				  
+				   this.imgSet.enabled=true;
+				   
+				   this.PSelect.enabled=true;
+				   this.RNSelect.enabled=true;
+				   this.PRDelete.enabled=true;
+				   this.PRSent.enabled=true;
+			   }
+
+			   //河道模拟-新建方案
+			   protected function NNewSchema_clickHandler(event:MouseEvent):void
+			   {
+				   //运行 新建河道模拟方案
+				   AppEvent.dispatch(AppEvent.WIDGET_RUN,ViewerContainer.getInstance().getWidgetId("新建河道模拟方案"));
+				   //1秒钟之后执行代码
+				   var timer:Timer = new Timer(1000, 1);
+				   timer.addEventListener(TimerEvent.TIMER_COMPLETE, onStartNNewSchemaNewId);
+				   timer.start();
+			   }
+			   //获取河道模拟 新方案ID
+			   private function onStartNNewSchemaNewId(event:TimerEvent):void{
+				   getNNewSchemaId();
+			   }
+			   //获取河道模拟 新方案ID
+			   private function getNNewSchemaId():void{
+				   try{
+					   var params:URLVariables = new URLVariables();
+					   params.slnclass="w";
+					   var url:String=reqUrl+"WinderHandler.aspx?act=Nscmnewid";
+					   AppUtil.req(url,params,onGetNNewSchemaNewIdResult);
+					   this.cursorManager.setBusyCursor();	
+				   }
+				   catch(err:Error){
+					   this.cursorManager.removeBusyCursor();
+					   showError(String(err),"方案新编号");
+				   }
+			   }
+			   //获取河道模拟 新方案ID 返回结果
+			   private function onGetNNewSchemaNewIdResult(event:ResultEvent):void{
+				   var strResult:String=event.result as String;
+				   this.cursorManager.removeBusyCursor();	
+				   if(strResult){
+					   var obj:Object=JSON.parse(strResult);
+					   if(obj.id!=""){
+						   var ac:ArrayCollection=new ArrayCollection();
+						   ac.addItem(obj.id);
+						   this.cursorManager.removeBusyCursor();	
+						   //共享数据
+						   this.addSharedData("newNNewSchemaid",ac);
+					   }					
+				   }
+			   }
+			   //断面编辑
+			   protected function NSectionEdit_clickHandler(event:MouseEvent):void
+			   {
+				   //运行 新建河道模拟方案
+				   AppEvent.dispatch(AppEvent.WIDGET_RUN,ViewerContainer.getInstance().getWidgetId("断面编辑"));
+				   
+			   }
+			   //边界条件
+			   protected function NBoundary_clickHandler(event:MouseEvent):void
+			   {
+				   //运行 新建河道模拟方案
+				   AppEvent.dispatch(AppEvent.WIDGET_RUN,ViewerContainer.getInstance().getWidgetId("边界条件"));
+			   }
+			   //选中水库节点
+			   protected function RNSelect_clickHandler(event:MouseEvent):void
+			   {
+				  this.riverSelect="2";
+				  activateDrawTool(DrawTool.MAPPOINT);
+			   }
+			   
+			   protected function PSelect_clickHandler(event:MouseEvent):void
+			   {
+				   this.riverSelect="1";
+				   activateDrawTool(DrawTool.MAPPOINT);
+			   }
+			   //权限设置
+			   protected function btnAuthority_clickHandler(event:MouseEvent):void
+			   {
+				   AppEvent.dispatch(AppEvent.WIDGET_RUN,ViewerContainer.getInstance().getWidgetId("Authority Settings"));				   
+			   }
+			   //定位范围
+			   protected function btnExtent_clickHandler(event:MouseEvent):void
+			   {
+				   if(this.username !=""){					 
+					   try{
+						   var url:String=reqUrl+"WinderHandler.aspx?act=userExtent";
+						   var params:URLVariables = new URLVariables();
+						   params.username=username;
+						   AppUtil.req(url,params,onuserExtent,onFault);
+						   this.cursorManager.setBusyCursor();	
+					   }
+					   catch(err:Error){
+						   this.cursorManager.removeBusyCursor();
+						   showError(String(err),"Range Info");
+					   }
+				   }
+			   }
+			   //点击用户 获取已经设置的出口河段
+			   private function onuserExtent(event:ResultEvent):void{
+				   //清空
+				   this.upstreamLayer.clear();
+				   this.cursorManager.removeBusyCursor();	
+				   var strResult:String=event.result as String;
+				   if(strResult){
+					   var obj:Object=JSON.parse(strResult);
+					   if(obj!=null){
+						   var rows:Array=obj.rows as Array;
+						   if(rows!=null && rows.length>0)
+						   {
+							   for(var i:int=0;i<rows.length;i++)
+							   {
+								   var geo:Object=rows[i]["SHAPE"];					
+								   
+								   var newobj:Object={	
+									   USERNAME:rows[i].USERNAME,
+										   SID:rows[i].SID,
+										   BINSTRLEN:rows[i].BINSTRLEN,
+										   BINSTRVAL:rows[i].BINSTRVAL,
+										   REGIONCODE:rows[i].REGIONID,
+										   REGIONID:rows[i].REGIONID,
+										   REGIONIDNEW:rows[i].REGIONIDNEW,
+										   ISOK:rows[i].ISOK,
+										   UPSUBAREA:rows[i].UPSUBAREA,
+										   REGHIGHID:""
+								   };
+								   
+								   var polyline:Polyline=new Polyline();
+								   var paths:Array=geo.paths[0];
+								   if(paths!=null && paths.length>0){
+									   var pointArray:Array=new Array();
+									   for(var j:int=0;j<paths.length;j++){
+										   var points:Array=paths[j];
+										   var mpt:MapPoint=new MapPoint(points[0],points[1]);
+										   pointArray.push(mpt);										
+									   }
+									   polyline.paths=[pointArray];
+								   }
+								   var gra:Graphic=new Graphic(polyline);
+								   gra.attributes=newobj;
+								   gra.addEventListener(MouseEvent.CLICK,onSelGraphicClickHandler);
+								   //gra.symbol=this.slsRed;
+								   this.upstreamLayer.add(gra);								   
+							   }		
+							   //缩放范围
+							   var graphicProvider:ArrayCollection = upstreamLayer.graphicProvider as ArrayCollection;
+							   map.zoomTo(GraphicUtil.getGraphicsExtent(graphicProvider.toArray()).expand(1.2));
+							   //用户出口河段列表
+							   addSharedData("UserAuthorityList",graphicProvider);
+							   AppEvent.dispatch(AppEvent.WIDGET_RUN,ViewerContainer.getInstance().getWidgetId("Outer List"));
+							   
+						   }
+						   
+					   }
+				   }
+			   }
+			   protected function btnFee_clickHandler(event:MouseEvent):void
+			   {
+				   if(this.username !=""){					 
+					   AppEvent.dispatch(AppEvent.WIDGET_RUN,ViewerContainer.getInstance().getWidgetId("Compute Costs"));
+				   }
+			   }
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<s:GlowFilter id="glowFilter"
+					  alpha="0.8"
+					  color="#80FFFF"
+					  inner="true"
+					  strength="10"/>
+		<esri:GeometryService id="geometryService"
+							  fault="geometryService_faultHandler(event)"
+							  simplifyComplete="geometryService_simplifyCompleteHandler(event)"/>
+		<esri:SimpleLineSymbol id="slsIdentify"  width="10" alpha="0.5" color="0x00FFFF" style="solid"/>
+		<esri:SimpleLineSymbol id="slsIdentifyReservoir"  width="12" alpha="0.5" color="0xCC3300" style="solid"/>
+		<esri:IdentifyTask id="identifyTask"   concurrency="last" showBusyCursor="true"  
+						   url="http://101.6.54.28:6080/arcgis/rest/services/gdn/GDN2/MapServer"/>
+		<s:DateTimeFormatter id="dateTimeFormatter" dateTimePattern="yyyy-MM-dd 00:00:00"/>
+		<esri:SimpleLineSymbol id="slsRed"  width="10" color="#871F78" style="solid"/>
+
+	</fx:Declarations>
+	<fx:Style>
+		.accorhead{
+			textAlign:center;
+			fontSize:15;
+		}
+	</fx:Style>
+		<mx:VBox width="100%" height="100%" paddingLeft="0" paddingTop="0" paddingRight="0" paddingBottom="0">
+			<mx:Image source="assets/images/left_titleEng.png" height="31"/>
+			<!-- borderColor="red"-->
+			<mx:Accordion id="accordion" width="100%" height="100%" paddingLeft="0" paddingTop="0" paddingRight="0" paddingBottom="0" headerStyleName="accorhead" change="accordion_changeHandler(event)">
+				<mx:VBox label="Meteorological Data"  width="100%" height="100%" left="0" top="0" right="0" bottom="0"
+						 borderColor="#ccddee" 
+						 paddingLeft="0" paddingTop="2" paddingRight="0" paddingBottom="0">
+					<!--
+					<s:VGroup paddingLeft="20" paddingTop="2" fontSize="15">							
+						<s:Button label="气象预报模拟" width="160" height="25" click="btnHistoryHandler()" />
+						<s:CheckBox id="ckBox" label="可见" fontSize="10" click="ckBox_clickHandler(event)"/>
+					</s:VGroup>
+					-->
+					<!--<s:Label text="预报开始时间："/>
+					<s:Form width="100%" height="100%">
+						<s:FormItem label="预报开始时间：">								
+					       <components:MyDateField id="sDT" width="40%"/>					           
+						</s:FormItem>
+						<s:FormItem label="预报结束时间：">								
+						   <components:MyDateField id="eDT" width="40%"/>							
+						</s:FormItem>
+					</s:Form>
+					-->
+					<s:VGroup paddingLeft="15" horizontalAlign="left" paddingTop="5" >
+						<s:Label text="Start Time："/>								
+						<!--<components:MyDateField id="sDT" width="100%"/>	-->	
+						<RDateTime:CustomizeDateField id="sDT" width="100%"/>
+						<s:Label text="End Time："/>								
+						<!--<components:MyDateField id="eDT" width="100%"/>-->
+						<RDateTime:CustomizeDateField id="eDT" width="100%"/>
+						<s:Label text="Forecast Agency："/>
+						<s:ComboBox id="cbxOrg" dataProvider="{ArrayCOrg}" labelField="labelCn" width="100%" close="cbxOrg_closeHandler(event)" selectedIndex="1"/>
+						<s:HGroup paddingTop="7" paddingLeft="15">
+							<mx:Button id="btnOK" label="Search" height="20" fontSize="15" click="btnOK_clickHandler(event)" />							
+							<s:CheckBox id="ckBox" label="Visible" fontFamily="" selected="true" height="20" fontSize="15" click="ckBox_clickHandler(event)"/>							
+						</s:HGroup>
+						
+						<s:Group id="nCDFList" width="100%" height="100%" visible="true">
+							<NetCDF:NetCDFDataGroup id="netcdfDG"
+													width="100%" height="100%" netcdfClick="showNetCDF(event)"
+													borderVisible="false"
+													contentBackgroundAlpha="0"
+													dataProvider="{netcdfAC}">
+								<NetCDF:layout>
+									<s:VerticalLayout gap="2"
+													  horizontalAlign="justify"
+													  useVirtualLayout="true"/>
+								</NetCDF:layout>
+							</NetCDF:NetCDFDataGroup>
+						</s:Group>
+					</s:VGroup>
+				</mx:VBox>
+				<mx:VBox label="Hydrology Modelling" horizontalAlign="center"   width="100%" height="100%" left="0" top="0" right="0" bottom="0"
+						 borderColor="#ccddee"
+						 paddingLeft="0" paddingTop="0" paddingRight="0" paddingBottom="0">
+					
+					<s:VGroup paddingLeft="8" paddingTop="2" fontSize="15">
+						<s:HGroup>
+							<s:Image width="60" height="50" source="assets/images/i_newscmEng.png" id="imgNewscm" enabled="false"  buttonMode="true"  useHandCursor="true"  click="btnWaterPrjNew_clickHandler(event)"/>
+							<s:Spacer width="15"/>
+							<s:Image width="60" height="50" source="assets/images/i_setEng.png" id="imgSet" enabled="false"  buttonMode="true"  useHandCursor="true"  click="btnWaterParams_clickHandler(event)"/>
+						</s:HGroup>
+						<s:Image width="70" height="18" source="assets/images/i_zoneselEng.png"/>
+						<s:VGroup>	
+							<!--activateDrawTool(DrawTool.MAPPOINT)-->
+							<s:Button label="Region Select By Point"  fontSize="10"  id="PSelect" enabled="false" width="160" click="PSelect_clickHandler(event)"/>
+							<s:Button label="Reservoir Select By Point"  fontSize="10"  id="RNSelect" enabled="false" width="160" click="RNSelect_clickHandler(event)" />
+							
+							<!--<s:Button label="Region Select By Frame"  fontSize="10"  id="RSelect" enabled="false" width="160" click="activateDrawTool(DrawTool.EXTENT)" />-->
+							<s:Button label="Region Segment Delete"  fontSize="10"  id="PRDelete" enabled="false" width="160" click="doShapeDel()" />
+							<s:Button label="Region Select Submit"  fontSize="10"  id="PRSent" enabled="false" width="160" click="btnWaterPrjShapeSelClickHandler()" />
+						</s:VGroup>
+					</s:VGroup>
+					<s:VGroup paddingLeft="20" paddingTop="5" height="20" width="100%">
+						<s:Label text="Selected Scenario：" fontSize="13"/>
+						<s:Label id="lblCurrWaterPrjName" fontSize="15" color="red"/>
+					</s:VGroup> 
+				</mx:VBox>
+				<mx:VBox label="Hydrodynamic Modelling" horizontalAlign="center" width="100%" height="100%" left="0" top="0" right="0" bottom="0" borderColor="#ccddee"
+						 paddingLeft="0" paddingTop="0" paddingRight="0" paddingBottom="0">
+					<s:VGroup paddingLeft="8" paddingTop="2" fontSize="15">	
+						<s:HGroup>
+							<s:Image width="60" height="50" source="assets/images/i_newscmEng.png" id="NNewSchema" buttonMode="true"  useHandCursor="true"  click="NNewSchema_clickHandler(event)"/>
+							<s:Spacer width="15"/>
+							<s:Image width="60" height="50" source="assets/images/i_setEng.png" id="NNewSchemaSet" enabled="false"  buttonMode="true"  useHandCursor="true"  click="btnNNewSchemaSet_clickHandler(event)"/>
+						</s:HGroup>
+						<s:Image width="70" height="18" source="assets/images/i_zoneselEng.png"/>
+						<s:VGroup>							
+							<s:Button label="Channel Select By Point" id="NRegionSel" width="160" click="activateDrawTool(DrawTool.MAPPOINT)" enabled="false" />
+							<!--<s:Button label="删除河段" id="NRegionDel" enabled="false" width="160" click="doShapeDel()" />-->
+							<s:Button label="Channel Submit" id="NRegionSent" width="160" click="btnRShapeSelClickHandler()" enabled="false" />
+							<s:Button label="Section Editor" id="NSectionEdit" width="160" click="NSectionEdit_clickHandler(event)" enabled="false"/>
+							<s:Button label="Boundary Conditions" id="NBoundary" width="160" click="NBoundary_clickHandler(event)" enabled="false" />
+						</s:VGroup>
+						<s:VGroup paddingLeft="5" paddingTop="5" height="20" width="100%">
+							<s:Label text="Selected Channel Scenario：" fontSize="13"/>
+							<s:Label id="lblCurrNPrjName" fontSize="15" color="red"/>
+							<s:Label text="In Developing..." fontSize="20" color="blue"/>
+						</s:VGroup> 
+						<!--<s:VGroup>
+							<s:Button label="新建方案" width="160" id="NNewSchema" click="NNewSchema_clickHandler(event)" />
+							<s:Button label="区域选择" width="160" id="NRegionSel" click="activateDrawTool(DrawTool.MAPPOINT)" />
+							<s:Button label="断面编辑" width="160" id="NSectionEdit" />
+							<s:Button label="边界条件" width="160" id="NBoundary" />
+							<s:Button label="模拟设置" width="160" id="NSimulation" />
+						</s:VGroup>-->
+					</s:VGroup>
+				</mx:VBox>
+				<mx:VBox label="Integrated Modelling"   width="100%" height="100%">
+					<s:VGroup paddingLeft="5" paddingTop="5" height="20" width="100%" horizontalCenter="0">
+						<s:Label text="In Developing..." fontSize="20" color="blue"/>
+					</s:VGroup> 					
+				</mx:VBox>
+				<mx:VBox label="Scenario Management"   width="100%" height="100%">
+				</mx:VBox>
+				<mx:VBox label="System Management"   width="100%" height="100%">				
+					<s:VGroup paddingTop="10" fontSize="14" width="100%" verticalAlign="middle" horizontalAlign="center">
+						<s:Button label="Log On" id="btnLogin" verticalCenter="0" click="btnLogin_clickHandler(event)"/>
+						<s:Button label="Log Off" id="btnClean" verticalCenter="0" click="btnClean_clickHandler(event)"/>
+						<s:Button label="Register" id="btnRegister" verticalCenter="0" click="btnRegister_clickHandler(event)" enabled="true"/>						
+					</s:VGroup>
+					<s:VGroup paddingLeft="20" paddingTop="5" height="20" width="100%">
+						<s:Label text="Current User:" fontSize="13"/>
+						<s:Label id="lblUser" fontSize="15" color="red"/>
+					</s:VGroup>
+					<s:VGroup paddingTop="20" fontSize="14" width="100%" verticalAlign="middle" horizontalAlign="center">
+						<s:Button label="Authority Settings" id="btnAuthority" visible="false" verticalCenter="0" click="btnAuthority_clickHandler(event)"/>
+					</s:VGroup>
+					<s:VGroup paddingTop="20" fontSize="14" width="100%" verticalAlign="middle" horizontalAlign="center">
+						<s:Button label="Orientation Range" id="btnExtent" visible="false" verticalCenter="0" click="btnExtent_clickHandler(event)"/>
+						<s:Button label="Compute Costs" id="btnFee" visible="false" verticalCenter="0" click="btnFee_clickHandler(event)"/>
+					</s:VGroup>
+				</mx:VBox>
+				<mx:VBox label="Exit"   width="100%" height="100%">
+				</mx:VBox>
+			</mx:Accordion>
+		</mx:VBox>	
+</viewer:BaseWidget>
+

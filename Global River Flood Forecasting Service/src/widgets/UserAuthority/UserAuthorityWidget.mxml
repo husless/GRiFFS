@@ -1,0 +1,572 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx" 
+				   xmlns:esri="http://www.esri.com/2008/ags"
+				   xmlns:viewer="com.esri.viewer.*"
+				   initialize="basewidget_initializeHandler()"
+				   widgetConfigLoaded="basewidget_widgetConfigLoaded()">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 0xF9F876-->
+		<esri:SimpleLineSymbol id="slsRed"  width="8" alpha="0.5" color="#FF0000" style="solid"/>
+		<esri:GeometryService id="geometryService"
+							  fault="geometryService_faultHandler(event)"
+							  simplifyComplete="geometryService_simplifyCompleteHandler(event)"/>
+		<esri:SimpleLineSymbol id="slsIdentify"  width="10" alpha="0.5" color="0x00FFFF" style="solid"/>
+		<esri:IdentifyTask id="identifyTask"   concurrency="last" showBusyCursor="true"  
+						   url="http://101.6.54.28:6080/arcgis/rest/services/gdn/GDN2/MapServer"/>
+		<mx:Glow id="glowGraphic" duration="800" alphaFrom="1.0" alphaTo="0.1" blurXFrom="0.0" blurXTo="25.0" blurYFrom="0.0" blurYTo="25.0" color="0x00ff00"/> 
+		
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.events.DrawEvent;
+			import com.esri.ags.events.GeometryServiceEvent;
+			import com.esri.ags.geometry.Extent;
+			import com.esri.ags.geometry.Geometry;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.geometry.Polygon;
+			import com.esri.ags.geometry.Polyline;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.ags.symbols.SimpleFillSymbol;
+			import com.esri.ags.symbols.SimpleLineSymbol;
+			import com.esri.ags.symbols.SimpleMarkerSymbol;
+			import com.esri.ags.symbols.Symbol;
+			import com.esri.ags.tasks.supportClasses.IdentifyParameters;
+			import com.esri.ags.tasks.supportClasses.IdentifyResult;
+			import com.esri.ags.tools.DrawTool;
+			import com.esri.ags.utils.GeometryUtil;
+			import com.esri.ags.utils.GraphicUtil;
+			import com.esri.ags.utils.JSONUtil;
+			
+			import flash.events.KeyboardEvent;
+			
+			import com.esri.viewer.AppEvent;
+			import com.esri.viewer.AppUtil;
+			import com.esri.viewer.ViewerContainer;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.rpc.AsyncResponder;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.http.HTTPService;
+			
+			import spark.collections.Sort;
+			import spark.collections.SortField;
+			import spark.events.GridEvent;
+						
+			//项目列表集合
+			private var theResults:ArrayCollection=new ArrayCollection();
+			private var finishDrawing:Boolean;
+			private var drawSymbol:Symbol;
+			private var pointSearchTolerance:Number = 3;//6;
+			[Bindable]
+			private var pointLabel:String= "select river by point";
+			[Bindable]
+			private var rectangleLabel:String= "select river by rectangle";
+			
+			[Bindable]
+			private var styleAlpha:Number;
+			private var reqUrl:String="";
+			private var Ext:String="";
+			private var username:String="";
+			private var IsOK:String="";
+			private var upstreamLayer:GraphicsLayer=new GraphicsLayer();
+
+			private function basewidget_initializeHandler():void
+			{
+				wTemplate.width = 280;
+				wTemplate.height = 465;
+			}
+			//添加监听
+			protected function basewidget_widgetConfigLoaded():void
+			{	
+				if (configXML)
+				{
+					reqUrl = configXML.url;
+				}
+				styleAlpha=configData.styleAlpha;
+				//获取已申请用户列表
+				getUserList();
+				upstreamLayer.symbol=this.slsRed;
+				upstreamLayer.id="userAuthorityList";
+				map.addLayer(upstreamLayer);
+				
+			}
+			//关闭窗口
+			private function widgetClosedHandler(event:Event):void
+			{
+				//删除显示河段图层
+				upstreamLayer.clear();
+				map.removeLayer(upstreamLayer);
+			}
+			//打开窗口，调用用户列表接口
+			private function widgetOpenedHandler(event:Event):void
+			{			
+				getUserList();	
+				upstreamLayer.symbol=this.slsRed;
+				upstreamLayer.id="userAuthorityList";
+				map.addLayer(upstreamLayer);
+			}
+			//获取后台服务 读取项目列表
+			private function getUserList():void
+			{
+				try
+				{
+					var url:String=reqUrl+"WinderHandler.aspx?act=scmlistUser";
+					var params:URLVariables = new URLVariables();
+					//params.RoleID="1";
+
+					//params.RoleID="";
+					AppUtil.req(url,params,onGetListUserResult,onFault);
+					this.cursorManager.setBusyCursor();	
+				}
+				catch(err:Error)
+				{
+					this.cursorManager.removeBusyCursor();
+					showError(String(err),"Apply user list");
+				}
+			}
+			private var obj:Object;
+			//单击某一用户时  设定其流域出口河段
+			private function onGridClick(event:GridEvent):void{
+				
+				if(prjListDG.selectedIndex>=0)
+				{
+					//当前选中用户	
+					obj =theResults.getItemAt(prjListDG.selectedIndex);
+					Ext=obj.Ext;
+					username=obj.USERNAME;
+					//IsOK=obj.IsOK;
+					/*
+					if(Number(Ext)==0)
+						this.btnSel.enabled=true;
+					else
+						this.btnSel.enabled=false;
+					*/
+					//如果已经设定则读取河段
+					var url:String=reqUrl+"WinderHandler.aspx?act=userExtent";
+					var params:URLVariables = new URLVariables();
+					params.username=username;
+					//params.IsOK=IsOK;					
+					try
+					{
+						AppUtil.req(url,params,onuserExtent,onFault);
+						this.cursorManager.setBusyCursor();	
+					}
+					catch(err:Error){
+						this.cursorManager.removeBusyCursor();
+						showError(String(err),"Apply user list");
+					}
+				}
+			}
+			
+			//点击用户 获取已经设置的出口河段
+			private function onuserExtent(event:ResultEvent):void{
+				//清空
+				this.upstreamLayer.clear();
+				this.cursorManager.removeBusyCursor();	
+				var strResult:String=event.result as String;
+				if(strResult){
+					var obj:Object=JSON.parse(strResult);
+					if(obj!=null){
+						var rows:Array=obj.rows as Array;
+						if(rows!=null && rows.length>0){
+							for(var i:int=0;i<rows.length;i++)
+							{
+								var geo:Object=rows[i]["SHAPE"];					
+							
+								var newobj:Object={	
+									    USERNAME:rows[i].USERNAME,
+										SID:rows[i].SID,
+										BINSTRLEN:rows[i].BINSTRLEN,
+										BINSTRVAL:rows[i].BINSTRVAL,
+										REGIONCODE:rows[i].REGIONID,
+										REGIONID:rows[i].REGIONID,
+										REGIONIDNEW:rows[i].REGIONIDNEW,
+										ISOK:rows[i].ISOK,
+										UPSUBAREA:rows[i].UPSUBAREA,
+										REGHIGHID:""
+								};
+								
+								var polyline:Polyline=new Polyline();
+								var paths:Array=geo.paths[0];
+								if(paths!=null && paths.length>0){
+									var pointArray:Array=new Array();
+									for(var j:int=0;j<paths.length;j++){
+										var points:Array=paths[j];
+										var mpt:MapPoint=new MapPoint(points[0],points[1]);
+										pointArray.push(mpt);										
+									}
+									polyline.paths=[pointArray];
+								}
+								var gra:Graphic=new Graphic(polyline);
+								gra.attributes=newobj;
+								gra.addEventListener(MouseEvent.CLICK,onSelGraphicClickHandler);
+								//gra.symbol=this.slsRed;
+								this.upstreamLayer.add(gra);
+															
+							}
+							//缩放范围
+							var graphicProvider:ArrayCollection = upstreamLayer.graphicProvider as ArrayCollection;
+							map.zoomTo(GraphicUtil.getGraphicsExtent(graphicProvider.toArray()).expand(1.2));
+							//用户出口河段列表
+							addSharedData("UserAuthorityList",graphicProvider);
+							AppEvent.dispatch(AppEvent.WIDGET_RUN,ViewerContainer.getInstance().getWidgetId("Outer List"));
+							
+						}
+					}
+				}
+			}
+			//点选或者框选
+			private function activateDrawTool(value:String):void{
+				finishDrawing = false;
+				map.defaultGraphicsLayer.clear();
+				this.setMapNavigation("","");
+				
+				var status:String;
+				switch (value){
+					//点选
+					case DrawTool.MAPPOINT:{
+						status = pointLabel;
+						drawSymbol = new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_CIRCLE, 15, 0x3FAFDC, 1);
+						break;
+					}
+					case DrawTool.EXTENT:{
+						status = rectangleLabel;
+						drawSymbol = new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, 0x3FAFDC, 0.5, new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, 0x3FAFDC, 1, 1));
+						break;
+					}
+				}
+				setMapAction(value, status, drawSymbol, searchDrawEnd);
+			}
+			//点选完成后执行的操作
+			private function searchDrawEnd(event:DrawEvent):void
+			{
+				var geom:Geometry = event.graphic.geometry;
+				
+				if (geom is Polygon && GeometryUtil.polygonSelfIntersecting(geom as Polygon)){
+					geometryService.simplify([ geom ]);
+				}
+				else{
+					if (geom.type == Geometry.MAPPOINT){
+						geom = createExtentAroundMapPoint(geom as MapPoint, pointSearchTolerance);
+					}
+					
+					queryFeaturesGraphical(geom);
+				}
+			}
+			//查询
+			private function createExtentAroundMapPoint(centerPoint:MapPoint,tolerance:Number):Extent
+			{
+				var screenPoint:Point = map.toScreen(centerPoint as MapPoint);
+				
+				var upperLeftScreenPoint:Point = new Point(screenPoint.x - tolerance, screenPoint.y - tolerance);
+				var lowerRightScreenPoint:Point = new Point(screenPoint.x + tolerance, screenPoint.y + tolerance);
+				
+				var upperLeftMapPoint:MapPoint = map.toMap(upperLeftScreenPoint);
+				var lowerRightMapPoint:MapPoint = map.toMap(lowerRightScreenPoint);
+				
+				return new Extent(upperLeftMapPoint.x, upperLeftMapPoint.y, lowerRightMapPoint.x, lowerRightMapPoint.y, map.spatialReference);
+			}
+			
+			private function geometryService_simplifyCompleteHandler(event:GeometryServiceEvent):void{
+				queryFeaturesGraphical(event.result[0] as Polygon);
+			}
+			
+			private function geometryService_faultHandler(event:FaultEvent):void{
+				showError(event.fault.toString());
+			}
+			
+			//查询河段
+			private function queryFeaturesGraphical(geom:Geometry):void{
+				var identifyParams:IdentifyParameters = new IdentifyParameters();
+				identifyParams.layerOption = IdentifyParameters.LAYER_OPTION_VISIBLE;
+				identifyParams.returnGeometry = true;
+				identifyParams.tolerance = pointSearchTolerance;
+				identifyParams.width = map.width;
+				identifyParams.height = map.height;
+				identifyParams.geometry = geom;
+				identifyParams.mapExtent = map.extent;
+				identifyParams.spatialReference = map.spatialReference;
+				identifyTask.execute(identifyParams, new AsyncResponder(myResultFunction, myFaultFunction));
+			}
+			
+			private function myResultFunction(results:Array, token:Object = null):void {                
+				if (results && results.length > 0){
+					map.defaultGraphicsLayer.symbol=this.slsIdentify;
+					for (var i:int = 0; i < results.length; i++)
+					{ 
+						var result:IdentifyResult = results[i];
+						if(result.layerName!=""){
+							var graphic:Graphic=result.feature;							
+							graphic.addEventListener(MouseEvent.CLICK,onSelGraphicClickHandler);
+							var newObj:Object=result.feature.attributes;
+							newObj.lyrid=result.layerId;
+							newObj.lyrname=result.layerName;
+							//选中河段
+							upstreamLayer.add(result.feature);							
+						}						
+					}
+					//用户出口河段列表
+					addSharedData("UserAuthorityList",upstreamLayer.graphicProvider as ArrayCollection);
+					AppEvent.dispatch(AppEvent.WIDGET_RUN,ViewerContainer.getInstance().getWidgetId("Outer List"));
+					
+				}
+			}
+			private function onSelGraphicClickHandler(event:MouseEvent):void{
+				var graphic:Graphic=event.currentTarget as Graphic;
+				upstreamLayer.remove(graphic);
+			}			
+			private function myFaultFunction(error:Object, token:Object = null):void{
+				this.showError(String(error),"Info");
+			}
+			//读取用户列表
+			private function onGetListUserResult(event:ResultEvent):void{
+				this.cursorManager.removeBusyCursor();	
+				var strResult:String=event.result as String;
+				//清空
+				if(prjListDG.dataProvider)
+				{
+					prjListDG.dataProvider.removeAll();
+				}
+				//绑定数据
+				if(strResult){
+					//解析Json字符串
+					var obj:Object=JSON.parse(strResult);
+					if(obj!=null){
+						var rows:Array=obj.rows as Array;
+						if(rows!=null && rows.length>0){
+							for(var i:int=0;i<rows.length;i++){
+								var sln:Object=rows[i];
+								theResults.addItem(sln);
+							}
+							prjListDG.dataProvider=theResults;	
+						}
+					}
+				}				
+			}
+			//读取用户列表  错误提示
+			private function onFault(info:Object, token:Object = null) : void{                    
+				this.cursorManager.removeBusyCursor(); 
+			}
+			//确定用户成为计算用户
+			protected function btn_clickHandler(event:MouseEvent):void
+			{
+				finishDrawing = true;				
+				this.setMapAction(null,null,null,null);
+				
+				if(this.username =="")
+				{
+					Alert.show("Please select user","Info");
+					return;
+				}else
+				{
+					Alert.yesLabel="Continue";
+					Alert.noLabel="Cancel";
+					Alert.show("Are you sure that select this river？","Info",Alert.YES|Alert.NO,this,ClickHandler);						
+				}
+				/*
+				else
+				{
+				OnSubmitSelR();
+				}
+				*/
+				
+			}
+			//同意
+			protected function btn1_clickHandler(event:MouseEvent):void
+			{
+				YesNo("1");
+			}
+			//驳回
+			protected function btn2_clickHandler(event:MouseEvent):void
+			{
+				YesNo("2");
+			}
+			protected function YesNo(yesno:String):void
+			{
+				if(prjListDG.selectedIndex>=0)
+				{
+					try
+					{
+						var url:String=reqUrl+"WinderHandler.aspx?act=SetUser";
+						var params:URLVariables = new URLVariables();
+						params.USERNAME=prjListDG.selectedItem.USERNAME;
+						params.ISOK=yesno;
+						AppUtil.req(url,params,onSetUserUetentResult,onFault);
+						this.cursorManager.setBusyCursor();	
+					}
+					catch(err:Error)
+					{
+						this.cursorManager.removeBusyCursor();
+						showError(String(err),"Info");
+					}
+				}
+				else
+				{
+					Alert.show("Please select one river","Info");
+				}
+			}
+			private function onSetUserUetentResult(event:ResultEvent):void{
+				var strResult:String=event.result as String;
+				this.cursorManager.removeBusyCursor();	
+				if(strResult){
+					var obj:Object=JSON.parse(strResult);
+					if(obj.msg=="ok")
+					{
+						Alert.show("You have riviewed this user","Info");
+					}
+					else
+					{
+						Alert.show("Bug","Info");
+					}
+				}
+			}
+			//ren覆盖
+			private function ClickHandler(evt:CloseEvent):void
+			{
+				if(evt.detail ==Alert.YES)
+				{
+					//OnSubmitSelR();
+				}
+			}
+			//河道模拟---提交河段段选择
+			private function OnSubmitSelR():void
+			{	
+				var graphicArray:ArrayCollection=upstreamLayer.graphicProvider as ArrayCollection;
+				var str:String="";
+				for(var i:int=0;i<graphicArray.length;i++){
+					var gra:Graphic=graphicArray.getItemAt(i) as Graphic;
+					var attrs:Object=gra.attributes;
+					var newobj:Object={
+						    username:this.username,							
+							regionid:attrs.REGIONID,							
+							binstrlen:attrs.BINSTRLEN,
+							binstrval:attrs.BINSTRVAL,
+							reghighid:"",
+							shape:JSONUtil.encode(gra.geometry)
+					};
+					
+					if(i<(upstreamLayer.numGraphics-1))
+						str+=JSON.stringify(newobj)+",";
+					else str+=JSON.stringify(newobj);
+				}
+				try {
+					var params:URLVariables=new URLVariables();
+					if(str!="")
+						params.rslt="{\"features\":["+str+"]}";
+					//else						
+					//	params.rslt="{\"features\":[\"username\":"+this.username+"]";
+					var url:String=reqUrl+"WinderHandler.aspx?act=addrgnselUser";
+					//trace(params.rslt);
+					AppUtil.req(url,params,onSubmitWaterPrjSelectedShape,onFault,"POST",false,"text",600000);	
+					this.cursorManager.setBusyCursor();						
+				}
+				catch(err:Error){
+					this.cursorManager.removeBusyCursor();
+				}				
+			}
+			private function onSubmitWaterPrjSelectedShape(event:ResultEvent):void
+			{
+				var strResult:String=event.result as String;
+				this.cursorManager.removeBusyCursor();
+				if(strResult)
+				{
+					var obj:Object=JSON.parse(strResult);
+					
+					if(obj.msg=="ok")
+					{
+						Alert.show(username+"—river is set up successfully！","Info");	
+						this.upstreamLayer.clear();
+						AppEvent.dispatch(AppEvent.WIDGET_CLOSE,ViewerContainer.getInstance().getWidgetId("Outer List"));
+						//重新读取用户列表
+						getUserList();
+					}else if(obj.msg=="error")
+					{
+						Alert.show(username+"—river is set up failed！","Info");
+					}	
+					this.cursorManager.removeBusyCursor();
+
+				}
+			}
+			private function onFault1(info:Object, token:Object = null) : void
+			{                    
+				this.cursorManager.removeBusyCursor(); 
+				//map.defaultGraphicsLayer.clear();
+			}
+			//取消选中河段
+			protected function btnCancle_clickHandler(event:MouseEvent):void
+			{
+				this.setMapAction(null,null,null,null);
+			}			
+			//清除
+			protected function btnClear_clickHandler(event:MouseEvent):void
+			{
+				this.upstreamLayer.clear();
+			}
+			//是否已限定流域范围"
+			
+			protected function btnSel_clickHandler(event:MouseEvent):void
+			{				
+				if(prjListDG.selectedIndex>=0)
+				{
+					//this.upstreamLayer.clear();
+					//当前选中用户	
+					obj =theResults.getItemAt(prjListDG.selectedIndex);
+					activateDrawTool(DrawTool.MAPPOINT);
+					
+					
+					/*
+					Ext=obj.Ext;
+					username=obj.USERNAME;
+					IsOK=obj.IsOK;
+					//如果已经设定则读取河段
+					var url:String=reqUrl+"WinderHandler.aspx?act=userExtent";
+					var params:URLVariables = new URLVariables();
+					params.username=username;
+					params.IsOK=IsOK;
+					*/
+				}else
+				{
+					Alert.show("Please select user","Info");
+					return;
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<viewer:WidgetTemplate id="wTemplate"
+						   closed="widgetClosedHandler(event)"
+						   open="widgetOpenedHandler(event)">
+		<s:VGroup width="100%" height="100%">
+			<s:DataGrid width="100%" height="100%" id="prjListDG"
+						gridClick="onGridClick(event);" alpha="{styleAlpha}"
+						chromeColor="0xF21515" alternatingRowColors="[#FFFFFF,#EFEFF0]">
+				<s:columns>
+					<s:ArrayList>
+						<s:GridColumn dataField="USERNAME" headerText="User name" sortable="true" ></s:GridColumn>
+						<s:GridColumn dataField="EXT" headerText="Outer No"></s:GridColumn>
+						<!--<s:GridColumn dataField="IsOK" headerText="是否已审核"></s:GridColumn>-->						
+					</s:ArrayList>
+				</s:columns>
+				<s:typicalItem>  
+					<fx:Object SID="201312" NAME="关于水文预"></fx:Object>  
+				</s:typicalItem>			
+			</s:DataGrid>
+			<s:HGroup horizontalAlign="center" paddingLeft="20">
+				<mx:LinkButton horizontalCenter="" label="Clear" id="btnClear" click="btnClear_clickHandler(event)"/>
+				<mx:LinkButton horizontalCenter="0" label="Agree" id="btn1" click="btn1_clickHandler(event)"/>		
+				<mx:LinkButton horizontalCenter="0" label="Disagree" id="btn2" click="btn2_clickHandler(event)"/>		
+				<!--
+				<mx:LinkButton horizontalCenter="0" label="新增出口" id="btnSel" click="btnSel_clickHandler(event)" enabled="true"/>
+				<mx:LinkButton horizontalCenter="0" label="取消" id="btnCancle" click="btnCancle_clickHandler(event)"/>
+				<mx:LinkButton horizontalCenter="0" label="确定" id="btn" click="btn_clickHandler(event)"/>		
+				-->
+			</s:HGroup>
+		</s:VGroup>
+	</viewer:WidgetTemplate>
+</viewer:BaseWidget>

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wsdl:definitions xmlns:ns2="http://schemas.xmlsoap.org/soap/http" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://serviceImpl.cxf.tsinghua.com/" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:ns1="http://Iservice.cxf.tsinghua.com/" name="GlobalForcastRainDataInfo" targetNamespace="http://serviceImpl.cxf.tsinghua.com/" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">
+  <wsdl:import namespace="http://Iservice.cxf.tsinghua.com/" location="http://101.6.54.28:8081/GlobalForcastRainDataWebService/GlobalForcastRainDataServer?wsdl=GlobalForcastRainDataServer.wsdl" />
+  <wsdl:types />
+  <wsdl:binding name="GlobalForcastRainDataInfoSoapBinding" type="ns1:GlobalForcastRainDataServer">
+    <soap:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <wsdl:operation name="QueryLatestForcastRainDataByRange">
+      <soap:operation soapAction="" style="document" />
+      <wsdl:input name="QueryLatestForcastRainDataByRange">
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output name="QueryLatestForcastRainDataByRangeResponse">
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="QueryForcastRainDataByRange">
+      <soap:operation soapAction="" style="document" />
+      <wsdl:input name="QueryForcastRainDataByRange">
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output name="QueryForcastRainDataByRangeResponse">
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="QueryHistoryForcastData">
+      <soap:operation soapAction="" style="document" />
+      <wsdl:input name="QueryHistoryForcastData">
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output name="QueryHistoryForcastDataResponse">
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ObtainLatestForcastDate">
+      <soap:operation soapAction="" style="document" />
+      <wsdl:input name="ObtainLatestForcastDate">
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output name="ObtainLatestForcastDateResponse">
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="QueryForcastRainData">
+      <soap:operation soapAction="" style="document" />
+      <wsdl:input name="QueryForcastRainData">
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output name="QueryForcastRainDataResponse">
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="QueryPointsInRange">
+      <soap:operation soapAction="" style="document" />
+      <wsdl:input name="QueryPointsInRange">
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output name="QueryPointsInRangeResponse">
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="GlobalForcastRainDataInfo">
+    <wsdl:port name="GlobalForcastRainServerInfoImplPort" binding="tns:GlobalForcastRainDataInfoSoapBinding">
+      <soap:address location="http://101.6.54.28:8081/GlobalForcastRainDataWebService/GlobalForcastRainDataServer" />
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>

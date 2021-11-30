@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<configuration>
+	<search>
+		<geocoding>
+			<locator>http://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer</locator>
+		</geocoding>
+	</search>
+	<links>
+		<link label="关于">
+			<content>
+                <![CDATA[
+                     <p align='center'>
+                         <img src='assets/images/globe.png'/>
+                         <br/>
+                         <b><a href="http://www.rails.com.cn/" target='_blank'><font size="+2" color="#FFFF00">铁路站点信息管理系统</font></a></b>
+                     </p>
+                ]]>
+			</content>
+		</link>
+	</links>
+</configuration>

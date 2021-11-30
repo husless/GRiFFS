@@ -1,0 +1,88 @@
+<?xml version="1.0" ?>
+<configuration>
+    <style>
+        <colors>0x444444,0xEBF4FF,0xEBF4FF,0xDEEBFF,0x444444</colors>
+        <alpha>0.8</alpha>
+    </style>
+    <widget left="10" top="10" visible="true" config="widgets/Navigation/NavigationWidget.xml" url="widgets/Navigation/NavigationWidget.swf"/>
+    <widget right="0" bottom="0" visible="true" config="widgets/OverviewMap/OverviewMapWidget.xml" url="widgets/OverviewMap/OverviewMapWidget.swf"/>
+    <widget left="75"  top="20" visible="true"   config="widgets/HeaderController/HeaderControllerWidget.xml" url="widgets/HeaderController/HeaderControllerWidget.swf"/>
+    <widget right="10" top="10" visible="true"  config="widgets/MapSwitcher/MapSwitcherWidget.xml" url="widgets/MapSwitcher/MapSwitcherWidget.swf"/>
+	<widget left="3" bottom="63" visible="true" config="widgets/Coordinate/CoordinateWidget.xml" url="widgets/Coordinate/CoordinateWidget.swf"/>
+    <map wraparound180="true" initialextent="4310358.7023 636895.8632 17557812.9484 7211703.2882" fullextent="-20037507.0672 -20036018.7354 20037507.0672 20037507.0672" top="0" addarcgisbasemaps="false">
+       
+       <!-- <basemaps>
+        	<layer label="地形图" type="tiled" visible="true" alpha="1" 
+        	icon="https://www.arcgis.com/sharing/rest/content/items/23fe7e8317ba4331b6ca72bf2a8eddb6/info/thumbnail/_E5_BE_AE_E5_8D_9A_E6_A1_8C_E9_9D_A2_E6_88_AA_E5_9B_BE_20130828171658.jpg"
+        	url="http://www.arcgisonline.cn/ArcGIS/rest/services/ChinaOnlineCommunity/MapServer"/>
+        	<layer label="浅灰色画布地图" type="tiled" visible="false" alpha="1"
+        	 icon="https://www.arcgis.com/sharing/rest/content/items/74e992f4fce3450aaf57a9a0df0007c3/info/thumbnail/cn_canvas.jpg"
+        	 url="http://www.arcgisonline.cn/ArcGIS/rest/services/ChinaOnlineStreetGray/MapServer"/>
+        	<layer label="影像图" type="tiled" visible="false" alpha="1"
+        	 icon="https://www.arcgis.com/sharing/rest/content/items/c6a677abfe1f4835b85ccf6956cd8541/info/thumbnail/tempimagery.jpg"
+        	 url="http://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer"/>
+        	<layer label="无底图" type="tiled" visible="false" alpha="1" icon="" url=""/>
+        </basemaps>
+        -->
+        <basemaps>
+        	<layer label="TopographicMap" type="tiled" visible="true" alpha="1" 
+        	icon="https://www.arcgis.com/sharing/rest/content/items/23fe7e8317ba4331b6ca72bf2a8eddb6/info/thumbnail/_E5_BE_AE_E5_8D_9A_E6_A1_8C_E9_9D_A2_E6_88_AA_E5_9B_BE_20130828171658.jpg"
+        	url="http://cache1.arcgisonline.cn/ArcGIS/rest/services/ChinaOnlineCommunityENG/MapServer"/>
+          <layer label="GrayMap" type="tiled" visible="false" alpha="1"
+        	 icon="https://www.arcgis.com/sharing/rest/content/items/74e992f4fce3450aaf57a9a0df0007c3/info/thumbnail/cn_canvas.jpg"
+        	 url="http://www.arcgisonline.cn/ArcGIS/rest/services/ChinaOnlineStreetGray/MapServer"/>
+        	<layer label="Image" type="tiled" visible="false" alpha="1"
+        	 icon="https://www.arcgis.com/sharing/rest/content/items/c6a677abfe1f4835b85ccf6956cd8541/info/thumbnail/tempimagery.jpg"
+        	 url="http://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer"/>
+          <!--http://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer-->
+        	<layer label="NoBaseMap" type="tiled" visible="false" alpha="1" icon="" url=""/>
+        </basemaps>
+        <operationallayers>
+            <layer label="River Network" type="dynamic" visible="true" alpha="0.7" url="http://101.6.54.28:6080/arcgis/rest/services/gdn/GDN2/MapServer"/>
+        </operationallayers>
+    </map>
+     <widgetcontainer paneltype="left"  initialstate="collapsed" size="200">
+         <widget label="资源导航"  config="widgets/LeftNav/LeftNavWidget.xml"  url="widgets/LeftNav/LeftNavWidget.swf"/>
+    </widgetcontainer>
+    <widgetcontainer layout="float">
+     <widget label="Result" top="100" icon="assets/images/move.png" config="widgets/ShapeSelResult/ShapeSelResultWidget.xml" url="widgets/ShapeSelResult/ShapeSelResultWidget.swf"/>
+     <widget label="Detailed River Information" left="300" top="100" icon="assets/images/move.png" config="widgets/FeatureAttrList/FeatureAttrListWidget.xml" url="widgets/FeatureAttrList/FeatureAttrListWidget.swf"/>
+     <widget label="New Scenario" icon="assets/images/move.png" config="widgets/SchemaWater/NewSchemaWaterWidget.xml" url="widgets/SchemaWater/NewSchemaWaterWidget.swf"/>
+     <widget label="Set Parameters" icon="assets/images/move.png" config="widgets/SchemaWaterParams/SchemaWaterParamsWidget.xml" url="widgets/SchemaWaterParams/SchemaWaterParamsWidget.swf"/>
+     <widget label="Scenario Management" top="120" preload="open"  right="5" icon="assets/images/move.png"  config="widgets/SchemaList/SchemaListWidget.xml"  url="widgets/SchemaList/SchemaListWidget.swf"/>
+     <widget label="Stage Hydrograph" top="30" left="15" icon="assets/images/move.png"  config="widgets/LineChartWater/LineChartWaterWidget.xml"  url="widgets/LineChartWater/LineChartWaterWidget.swf"/>
+     <widget label="Discharge Hydrograph" top="30" left="15" icon="assets/images/move.png"  config="widgets/LineChartFlow/LineChartFlowWidget.xml"  url="widgets/LineChartFlow/LineChartFlowWidget.swf"/>
+     <widget label="Vertical Section Profile" top="50" left="15" icon="assets/images/move.png"  config="widgets/LineChartVSection/LineChartVSectionWidget.xml"  url="widgets/LineChartVSection/LineChartVSectionWidget.swf"/>
+     <widget label="River Network" top="80" right="5" icon="assets/images/move.png"  config="widgets/LayerList/LayerListWidget.xml"  url="widgets/LayerList/LayerListWidget.swf" />
+     <widget label="Meteorological Simulation" bottom="10" right="430" icon="assets/images/move.png"  config="widgets/History/HistoryWidget.xml"  url="widgets/History/HistoryWidget.swf" />
+     <widget label="Legend" right="3" bottom="2" config="widgets/Legend/LegendWidget.xml" icon="assets/images/Legend32.png" url="widgets/Legend/LegendWidget.swf"/>
+     <widget label="方案属性" top="100" left="300" config="widgets/SchemaAttr/SchemaAttrWidget.xml" icon="assets/images/move.png" url="widgets/SchemaAttr/SchemaAttrWidget.swf"/>
+     <widget label="User Login" top="160" left="350" config="widgets/UserLogin/UserLoginWidget.xml" icon="assets/images/move.png" url="widgets/UserLogin/UserLoginWidget.swf"/>
+     <widget label="用户注册" top="80" left="350" config="widgets/UserRegister/UserRegisterWidget.xml" icon="assets/images/move.png" url="widgets/UserRegister/UserRegisterWidget.swf"/>
+     
+     <widget label="Authority Settings" top="100" right="50" config="widgets/UserAuthority/UserAuthorityWidget.xml" icon="assets/images/move.png" url="widgets/UserAuthority/UserAuthorityWidget.swf"/>
+     <widget label="Outer List" top="100" right="450" config="widgets/UserAuthorityList/UserAuthorityListWidget.xml" icon="assets/images/move.png" url="widgets/UserAuthorityList/UserAuthorityListWidget.swf"/>
+     <widget label="User Register" top="80" left="50" config="widgets/UserRegister/UserRegisterWidget.xml" icon="assets/images/move.png" url="widgets/UserRegister/UserRegisterWidget.swf"/>
+     <widget label="用户注册范围" top="80" left="450" config="widgets/UserRegisterExt/UserRegisterExtWidget.xml" icon="assets/images/move.png" url="widgets/UserRegisterExt/UserRegisterExtWidget.swf"/>
+     <widget label="Compute Costs" top="80" left="450" config="widgets/UserFee/UserFeeWidget.xml" icon="assets/images/move.png" url="widgets/UserFee/UserFeeWidget.swf"/>
+     <widget label="费用单价" top="130" left="250" config="widgets/UserFeeDesc/UserFeeDescWidget.xml" icon="assets/images/move.png" url="widgets/UserFeeDesc/UserFeeDescWidget.swf"/>
+     <widget label="费用单价设置" top="130" left="250" config="widgets/UserFeeDescAdmin/UserFeeDescAdminWidget.xml" icon="assets/images/move.png" url="widgets/UserFeeDescAdmin/UserFeeDescAdminWidget.swf"/>
+     <widget label="RainStation" top="100" left="15" config="widgets/RainStation/RainStationAddWidget.xml" icon="assets/images/move.png" url="widgets/RainStation/RainStationControlWidget.swf"/>
+     <widget label="导入雨量站点" top="100" left="400" config="widgets/RainStation/RainStationAddWidget.xml" icon="assets/images/move.png" url="widgets/RainStation/RainStationAddWidget.swf"/>
+     <widget label="导入雨量数据" top="100" left="400" config="widgets/RainUpload/RainUploadWidget.xml" icon="assets/images/move.png" url="widgets/RainUpload/RainUploadWidget.swf"/>
+    
+    
+     
+     <widget label="水库名称" top="80" left="500" config="widgets/ReservoirNew/ReservoirNewWidget.xml" icon="assets/images/move.png" url="widgets/ReservoirNew/ReservoirNewWidget.swf"/>
+     <widget label="水库出流过程" top="100" left="480" config="widgets/ReservoirFlow/ReservoirFlowWidget.xml" icon="assets/images/move.png" url="widgets/ReservoirFlow/ReservoirFlowWidget.swf"/>
+     <widget label="出流数据" top="100" left="500" config="widgets/ReservoirFlowDesc/ReservoirFlowDescWidget.xml" icon="assets/images/move.png" url="widgets/ReservoirFlowDesc/ReservoirFlowDescWidget.swf"/>
+     
+     <!-- 用户注册范围 方案属性 用户注册 费用单价 费用单价设置 导入雨量站点 导入雨量数据 水库名称 水库出流过程 出流数据"-->
+     <widget label="新建河道模拟方案" icon="assets/images/move.png" config="widgets/NNewSchema/NNewSchemaWidget.xml" url="widgets/NNewSchema/NNewSchemaWidget.swf"/>     
+     <widget label="河道模拟参数设置" icon="assets/images/move.png" config="widgets/NNewSchemaSet/NNewSchemaSetWidget.xml" url="widgets/NNewSchemaSet/NNewSchemaSetWidget.swf"/>
+     <widget label="断面编辑" top="15" left="15" icon="assets/images/move.png" config="widgets/NSectionEdit/NSectionEditWidget.xml" url="widgets/NSectionEdit/NSectionEditWidget.swf"/>
+     <widget label="边界条件" top="15" left="15" icon="assets/images/move.png" config="widgets/NBoundary/NBoundaryWidget.xml" url="widgets/NBoundary/NBoundaryWidget.swf"/>
+    
+    </widgetcontainer>
+    
+</configuration>

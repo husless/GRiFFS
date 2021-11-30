@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration> 
+<!-- 
+ <url>http://localhost/test/</url>
+  -->
+ <!--调用之前发布好的服务
+  <url>http://101.6.54.216/test/</url>
+  -->
+  <!--调用Ren发布服务-->
+  <url>http://42.159.24.58:8010/GloF3S_V2.0/English/</url>
+  <!--服务器WS地址 http://101.6.54.216/WSRen/WS.asmx?wsdl
+      Ren本机地址  http://localhost:6201/WS.asmx?wsdl   -->
+  <webserviceUrl>http://42.159.24.58:8011/WSRenV2.1/WS.asmx?wsdl</webserviceUrl>
+  <preHeatLeft>15</preHeatLeft>
+  <preHeatRight>3</preHeatRight>
+</configuration>

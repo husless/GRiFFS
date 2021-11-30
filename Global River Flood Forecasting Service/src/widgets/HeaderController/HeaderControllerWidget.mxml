@@ -1,0 +1,613 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009"
+                   xmlns:s="library://ns.adobe.com/flex/spark"
+                   xmlns:mx="library://ns.adobe.com/flex/mx"
+				   xmlns:esri="http://www.esri.com/2008/ags"
+                   xmlns:viewer="com.esri.viewer.*"
+				   xmlns:components="com.esri.viewer.components.*"
+                   borderSkin="{null}"
+                   creationComplete="creationCompleteHandler(event)"
+                   widgetConfigLoaded="widgetConfigLoadedHandler()">
+    <fx:Script>
+        <![CDATA[
+			import com.esri.ags.events.DrawEvent;
+			import com.esri.ags.events.GeometryServiceEvent;
+			import com.esri.ags.geometry.Extent;
+			import com.esri.ags.geometry.Geometry;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.geometry.Polygon;
+			import com.esri.ags.symbols.SimpleFillSymbol;
+			import com.esri.ags.symbols.SimpleLineSymbol;
+			import com.esri.ags.symbols.SimpleMarkerSymbol;
+			import com.esri.ags.symbols.Symbol;
+			import com.esri.ags.tasks.GeometryServiceSingleton;
+			import com.esri.ags.tasks.supportClasses.IdentifyParameters;
+			import com.esri.ags.tasks.supportClasses.IdentifyResult;
+			import com.esri.ags.tools.DrawTool;
+			import com.esri.ags.utils.GeometryUtil;
+			import com.esri.viewer.AppEvent;
+			import com.esri.viewer.ViewerContainer;
+			
+			import mx.collections.ArrayCollection;
+//			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.rpc.AsyncResponder;
+			import mx.rpc.events.FaultEvent;
+			
+			import spark.events.IndexChangeEvent;
+			
+			import widgets.Navigation.NavToolItem;
+			
+			[Bindable]
+			public var zoomFullextItem:NavToolItem;
+			
+			[Bindable]
+			public var prevextItem:NavToolItem;
+			
+			[Bindable]
+			public var nextextItem:NavToolItem;
+			
+			[Bindable]
+			public var zoominItem:NavToolItem;
+			
+			[Bindable]
+			public var zoomoutItem:NavToolItem;
+			
+			[Bindable]
+			public var panItem:NavToolItem;
+			
+			[Bindable]
+			public var clearItem:NavToolItem;
+			
+			[Bindable]
+			public var pointselItem:NavToolItem;
+			
+			[Bindable]
+			public var rectselItem:NavToolItem;
+			
+			[Bindable]
+			public var waterlineItem:NavToolItem;
+			
+			[Bindable]
+			public var flowlineItem:NavToolItem;
+			
+			[Bindable]
+			public var vsectionItem:NavToolItem;
+			
+			[Bindable]
+			private var hasDrawnGraphics:Boolean;
+			
+			private var finishDrawing:Boolean;
+			
+			[Bindable]
+			private var pointLabel:String;
+			
+			[Bindable]
+			private var rectangleLabel:String;
+			
+			private var drawSymbol:Symbol;
+			
+			private var buttonBarLastSelectedIndex:int;
+			
+			
+            private function creationCompleteHandler(event:FlexEvent):void
+            {
+				
+            }
+
+            private function widgetConfigLoadedHandler():void
+            {
+                if (configXML)
+                {
+					var geocoderXML:XML = configXML.geocoder[0] || configXML.search[0];
+					
+					const shouldEnableGeocoder:Boolean = geocoderXML && (geocoderXML.@visible[0] != "false");
+					if (shouldEnableGeocoder)
+					{
+						singleLineSearch.hostBaseWidget = this;
+						singleLineSearch.includeInLayout = true;
+						singleLineSearch.visible = true;
+					}
+					
+					geometryService.url = GeometryServiceSingleton.instance.url;
+					geometryService.token = GeometryServiceSingleton.instance.token;
+					geometryService.proxyURL = GeometryServiceSingleton.instance.proxyURL;
+					
+					pointLabel = configXML.labels.pointlabel || getDefaultString("drawPointLabel");
+					rectangleLabel = configXML.labels.rectanglelabel || getDefaultString("drawRectangleLabel");
+					
+					zoomFullextItem = new NavToolItem(configXML.zoomfullbutton.@label || getDefaultString("fullExtentLabel"), "",configXML.zoomfullbutton.@visible=='true');
+					prevextItem = new NavToolItem(configXML.prevextbutton.@label || getDefaultString("previousExtentLabel"), "", configXML.prevextbutton.@visible == 'true');
+					nextextItem = new NavToolItem(configXML.nextextbutton.@label || getDefaultString("nextExtentLabel"), "", configXML.nextextbutton.@visible == 'true');
+					panItem = new NavToolItem(configXML.panbutton.@label || getDefaultString("panLabel"), configXML.panbutton.@icon, configXML.panbutton.@visible == 'true');
+					zoominItem = new NavToolItem(configXML.zoominbutton.@label || getDefaultString("zoomInLabel"), configXML.zoominbutton.@icon, configXML.zoominbutton.@visible == 'true');
+					zoomoutItem = new NavToolItem(configXML.zoomoutbutton.@label || getDefaultString("zoomOutLabel"), configXML.zoomoutbutton.@icon, configXML.zoomoutbutton.@visible == 'true');
+					pointselItem = new NavToolItem(configXML.pointselbutton.@label || getDefaultString("pointSelLabel"), configXML.pointselbutton.@icon, configXML.pointselbutton.@visible == 'true');
+					rectselItem = new NavToolItem(configXML.rectselbutton.@label || getDefaultString("rectSelLabel"), configXML.rectselbutton.@icon, configXML.rectselbutton.@visible == 'true');
+					
+					waterlineItem = new NavToolItem(configXML.waterlinebutton.@label || getDefaultString("waterLineLabel"), configXML.waterlinebutton.@icon, configXML.waterlinebutton.@visible == 'true');
+					flowlineItem = new NavToolItem(configXML.flowlinebutton.@label || getDefaultString("flowLineLabel"), configXML.flowlinebutton.@icon, configXML.flowlinebutton.@visible == 'true');
+					
+					vsectionItem = new NavToolItem(configXML.vsectionbutton.@label || getDefaultString("vsectionLabel"), configXML.vsectionbutton.@icon, configXML.vsectionbutton.@visible == 'true');
+					
+					initButtonBar();
+					AppEvent.addListener(AppEvent.DATA_PUBLISH, sharedDataUpdated);
+                }
+            }
+
+			private function initButtonBar():void
+			{
+				var navAC:ArrayCollection = new ArrayCollection();
+				
+				if (panItem.toolVisible == true){
+					navAC.addItem({ label: panItem.toolName, action: "pan", imageIcon: panItem.toolIcon });
+				}
+				
+				if (zoominItem.toolVisible == true){
+					navAC.addItem({ label: zoominItem.toolName, action: "zoomin", imageIcon: zoominItem.toolIcon });
+				}
+				
+				if (zoomoutItem.toolVisible == true){
+					navAC.addItem({ label: zoomoutItem.toolName, action: "zoomout", imageIcon: zoomoutItem.toolIcon });
+				}
+				
+				if(pointselItem.toolVisible==true){
+					navAC.addItem({ label: pointselItem.toolName, action: "pointsel", imageIcon: pointselItem.toolIcon });
+				}
+				
+				if(rectselItem.toolVisible==true){
+					navAC.addItem({ label: rectselItem.toolName, action: "rectsel", imageIcon: rectselItem.toolIcon });
+				}
+				if(waterlineItem.toolVisible==true){
+					navAC.addItem({ label: waterlineItem.toolName, action: "waterline", imageIcon: waterlineItem.toolIcon });
+				}
+				
+				if(flowlineItem.toolVisible==true){
+					navAC.addItem({ label: flowlineItem.toolName, action: "flowline", imageIcon: flowlineItem.toolIcon });
+				}
+				if(vsectionItem.toolVisible==true){
+					navAC.addItem({ label: vsectionItem.toolName, action: "vsection", imageIcon: vsectionItem.toolIcon });
+				}
+				
+				btnMapCmdlBar.dataProvider = navAC;
+			}
+			
+			protected function buttonbar1_changeHandler(event:IndexChangeEvent):void
+			{
+				var action:String=event.currentTarget.dataProvider[event.newIndex].action;
+				switch(action){
+					case "waterline":
+						currAction="waterline";
+						showRiverLineChart(action);
+						break;
+					case "flowline":
+						currAction="flowline";
+						showRiverLineChart(action);
+						break;
+					case "vsection":
+						currAction="vsection";
+						showVerticalSection(action);
+						break;
+					case "pointsel":
+					case "rectsel":					
+							doShapeSelection(action);
+							break;
+					case "pan":
+					case "zoomin":
+					case "zoomout":
+						doNavAction(action,
+							event.currentTarget.dataProvider[event.newIndex].label);
+						break;
+				}
+			}
+			
+			protected function buttonbar1_valueCommitHandler(event:FlexEvent):void
+			{
+				if (event.currentTarget.selectedIndex != -1)
+				{
+					var action:String=event.currentTarget.dataProvider[event.currentTarget.selectedIndex].action;
+					switch(action){
+						case "waterline":
+							currAction="waterline";
+							showRiverLineChart(action);
+							break;
+						case "flowline":
+							currAction="flowline";
+							showRiverLineChart(action);
+							break;
+						case "pointsel":
+						case "rectsel":
+							doShapeSelection(action);
+							break;
+						case "pan":
+						case "zoomin":
+						case "zoomout":
+							doNavAction(action,
+								event.currentTarget.dataProvider[event.currentTarget.selectedIndex].label);
+							break;
+						
+					}
+				}
+			}
+			
+			private function doNavAction(action:String, label:String):void
+			{
+				finishDrawing = true;
+				var data:Object =
+					{
+						tool: action,
+						status: label
+					}
+				AppEvent.dispatch(AppEvent.SET_MAP_NAVIGATION, data);
+			}	
+			
+			private function showRiverLineChart(action:String):void{
+				addSharedData("Deactivate_DrawTool", null);
+				this.setMapNavigation("","");
+				finishDrawing = false;
+				var status:String;
+				var value:String =DrawTool.MAPPOINT;
+				status = pointLabel;
+				value=DrawTool.MAPPOINT;
+				drawSymbol = new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_CIRCLE, 15, 0x3FAFDC, 1);
+				
+				setMapAction(value, status, drawSymbol, searchRiverIDEnd);
+			}
+			private function showVerticalSection(action:String):void{
+				addSharedData("Deactivate_DrawTool", null);
+				this.setMapNavigation("","");
+				finishDrawing = false;
+				var status:String;
+				var value:String =DrawTool.MAPPOINT;
+				status = pointLabel;
+				value=DrawTool.MAPPOINT;
+				drawSymbol = new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_CIRCLE, 15, 0x3FAFDC, 1);
+				
+				setMapAction(value, status, drawSymbol, searchRiverCloseOutSeg);
+			}
+			
+			
+			
+			private function searchRiverIDEnd(event:DrawEvent):void
+			{
+				var geom:Geometry = event.graphic.geometry;
+				
+				if (geom is Polygon && GeometryUtil.polygonSelfIntersecting(geom as Polygon))
+				{
+					geometryService.simplify([ geom ]);
+				}
+				else
+				{
+					if (geom.type == Geometry.MAPPOINT)
+					{
+						geom = createExtentAroundMapPoint(geom as MapPoint, pointSearchTolerance);
+					}
+					
+					queryRiverSegment(geom);
+				}
+			}
+			
+			private function searchRiverCloseOutSeg(event:DrawEvent):void
+			{
+				var geom:Geometry = event.graphic.geometry;
+				
+				if (geom is Polygon && GeometryUtil.polygonSelfIntersecting(geom as Polygon))
+				{
+					geometryService.simplify([ geom ]);
+				}
+				else
+				{
+					if (geom.type == Geometry.MAPPOINT)
+					{
+						geom = createExtentAroundMapPoint(geom as MapPoint, pointSearchTolerance);
+					}
+					
+					queryRiverCloseSegment(geom);
+				}
+			}
+			
+			
+			private function queryRiverCloseSegment(geom:Geometry):void{
+				map.defaultGraphicsLayer.clear();
+				ViewerContainer.getInstance().runWidget("Vertical Section Profile");
+				var identifyParams:IdentifyParameters = new IdentifyParameters();
+				identifyParams.layerOption = IdentifyParameters.LAYER_OPTION_VISIBLE;
+				identifyParams.returnGeometry = true;
+				identifyParams.tolerance = pointSearchTolerance;
+				identifyParams.width = map.width;
+				identifyParams.height = map.height;
+				identifyParams.geometry = geom;
+				identifyParams.mapExtent = map.extent;
+				identifyParams.spatialReference = map.spatialReference;
+				identifyTask.execute(identifyParams, new AsyncResponder(myResultFunction2, myFaultFunction));
+			}
+			
+			private static var currAction:String="";
+			private function queryRiverSegment(geom:Geometry):void
+			{				
+				map.defaultGraphicsLayer.clear();
+				if(currAction=="waterline"){
+					ViewerContainer.getInstance().runWidget("Stage Hydrograph");
+				}
+				if(currAction=="flowline"){
+					ViewerContainer.getInstance().runWidget("Discharge Hydrograph");
+				}
+				
+				var identifyParams:IdentifyParameters = new IdentifyParameters();
+				identifyParams.layerOption = IdentifyParameters.LAYER_OPTION_VISIBLE;
+				identifyParams.returnGeometry = true;
+				identifyParams.tolerance = pointSearchTolerance;
+				identifyParams.width = map.width;
+				identifyParams.height = map.height;
+				identifyParams.geometry = geom;
+				identifyParams.mapExtent = map.extent;
+				identifyParams.spatialReference = map.spatialReference;
+				identifyTask.execute(identifyParams, new AsyncResponder(myResultFunction1, myFaultFunction));
+			}
+			
+			private function myResultFunction1(results:Array, token:Object = null):void {                
+				var ac:ArrayCollection=new ArrayCollection();
+				if (results!=null && results.length > 0){
+					map.defaultGraphicsLayer.clear();
+					map.defaultGraphicsLayer.symbol=this.slsIdentify;
+					var result:IdentifyResult = results[0];
+					if(result.layerName!=""){
+						ac.addItem(result.feature.attributes);
+						map.defaultGraphicsLayer.add(result.feature);
+					}
+				}
+				addSharedData("linechart",ac);
+			}		
+			
+			private function myResultFunction2(results:Array, token:Object = null):void {                
+				var ac:ArrayCollection=new ArrayCollection();
+				if (results!=null && results.length > 0){
+					map.defaultGraphicsLayer.clear();
+					map.defaultGraphicsLayer.symbol=this.slsIdentify;
+					var result:IdentifyResult = results[0];
+					if(result.layerName!=""){
+						ac.addItem(result.feature.attributes);
+						map.defaultGraphicsLayer.add(result.feature);
+					}
+				}
+				
+				addSharedData("vsection",ac);
+			}		
+			
+			
+			private var pointSearchTolerance:Number = 6;			
+			private function doShapeSelection(action:String):void{
+				addSharedData("Deactivate_DrawTool", null);
+				this.setMapNavigation("","");
+				ViewerContainer.getInstance().runWidget("Result");
+				finishDrawing = false;
+				var status:String;
+				var value:String =DrawTool.MAPPOINT;
+				
+				if(action=="pointsel"){
+					status = pointLabel;
+					value=DrawTool.MAPPOINT;
+					drawSymbol = new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_CIRCLE, 15, 0x3FAFDC, 1);
+				}
+				else if(action=="rectsel"){
+					status = rectangleLabel;
+					value=DrawTool.EXTENT;
+					drawSymbol = new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, 0x3FAFDC, 0.5, new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, 0x3FAFDC, 1, 1));
+				}
+				setMapAction(value, status, drawSymbol, searchDrawEnd);
+			}
+			
+			private function searchDrawEnd(event:DrawEvent):void
+			{
+				var geom:Geometry = event.graphic.geometry;
+				
+				if (geom is Polygon && GeometryUtil.polygonSelfIntersecting(geom as Polygon))
+				{
+					geometryService.simplify([ geom ]);
+				}
+				else
+				{
+					if (geom.type == Geometry.MAPPOINT)
+					{
+						geom = createExtentAroundMapPoint(geom as MapPoint, pointSearchTolerance);
+					}
+					
+					queryFeaturesGraphical(geom);
+				}
+			}
+			
+			private function createExtentAroundMapPoint(centerPoint:MapPoint, tolerance:Number):Extent
+			{
+				var screenPoint:Point = map.toScreen(centerPoint as MapPoint);
+				var upperLeftScreenPoint:Point = new Point(screenPoint.x - tolerance, screenPoint.y - tolerance);
+				var lowerRightScreenPoint:Point = new Point(screenPoint.x + tolerance, screenPoint.y + tolerance);
+				
+				var upperLeftMapPoint:MapPoint = map.toMap(upperLeftScreenPoint);
+				var lowerRightMapPoint:MapPoint = map.toMap(lowerRightScreenPoint);
+				
+				return new Extent(upperLeftMapPoint.x, upperLeftMapPoint.y, lowerRightMapPoint.x, lowerRightMapPoint.y, map.spatialReference);
+			}
+
+			
+			private function clear():void
+			{
+				updateHasDrawnGraphics();
+			}
+			
+			private function updateHasDrawnGraphics():void
+			{
+				hasDrawnGraphics =map.defaultGraphicsLayer.numGraphics > 0;
+			}
+		
+			private function sharedDataUpdated(event:AppEvent):void
+			{
+				var data:Object = event.data;
+				
+				if (data.key == "Deactivate_DrawTool")
+				{
+					setMapAction(null, null, null, null);
+				}
+			}
+			
+			private function geometryService_faultHandler(event:FaultEvent):void
+			{
+				map.cursorManager.removeAllCursors();
+			}
+			
+			private function geometryService_simplifyCompleteHandler(event:GeometryServiceEvent):void
+			{
+				queryFeaturesGraphical(event.result[0] as Polygon);
+			}
+			
+			private function queryFeaturesGraphical(geom:Geometry):void
+			{
+				map.defaultGraphicsLayer.clear();
+				ViewerContainer.getInstance().runWidget("Result");
+				
+				var identifyParams:IdentifyParameters = new IdentifyParameters();
+				identifyParams.layerOption = IdentifyParameters.LAYER_OPTION_VISIBLE;
+				identifyParams.returnGeometry = true;
+				identifyParams.tolerance = pointSearchTolerance;
+				identifyParams.width = map.width;
+				identifyParams.height = map.height;
+				identifyParams.geometry = geom;
+				identifyParams.mapExtent = map.extent;
+				identifyParams.spatialReference = map.spatialReference;
+				identifyTask.execute(identifyParams, new AsyncResponder(myResultFunction, myFaultFunction));
+			}
+			
+			private function myResultFunction(results:Array, token:Object = null):void {                
+				if (results && results.length > 0){
+					map.defaultGraphicsLayer.clear();
+					map.defaultGraphicsLayer.symbol=this.slsIdentify;
+					
+					var ac:ArrayCollection=new ArrayCollection();
+					for (var i:int = 0; i < results.length; i++) { 
+						var result:IdentifyResult = results[i];
+						if(result.layerName!=""){
+							ac.addItem(result.feature);
+							map.defaultGraphicsLayer.add(result.feature);
+						}
+					}					
+					addSharedData("ShapeSelResults",ac);
+				}
+			}			
+			
+			private function myFaultFunction(error:Object, token:Object = null):void{
+				map.cursorManager.removeAllCursors();
+			}
+			
+
+			private function showPrjList():void{
+				ViewerContainer.getInstance().runWidget("Scenario Management");
+			}
+			
+			private function showLineChartWater():void{
+				ViewerContainer.getInstance().runWidget("Stage Hydrograph");
+			}
+			
+			private function showLineChartFlow():void{
+				ViewerContainer.getInstance().runWidget("Discharge Hydrograph");
+			}
+			private function AddST():void{
+				ViewerContainer.getInstance().runWidget("RainStation");
+			}
+			
+        ]]>
+    </fx:Script>
+	<fx:Declarations>
+		<esri:GeometryService id="geometryService"
+							  fault="geometryService_faultHandler(event)"
+							  simplifyComplete="geometryService_simplifyCompleteHandler(event)"/>
+		<esri:SimpleLineSymbol id="slsIdentify"  width="10" alpha="0.5" color="0x00FFFF" style="solid"/>
+		<esri:IdentifyTask id="identifyTask"   concurrency="last" showBusyCursor="true" 
+						   url="http://101.6.54.28:6080/arcgis/rest/services/gdn/GDN2/MapServer"/>
+		<!--http://166.111.47.28:6080/arcgis/rest/services/gdn/Hydro30/MapServer-->
+	</fx:Declarations>
+    <s:Group id="headerGroup"   width="100%" height="85">
+        <s:Group id="headerContent" width="100%" height="{headerGroup.height - 43}">
+            <s:HGroup width="100%" height="100%"
+                      gap="5"
+                      paddingLeft="5"
+                      paddingRight="20"
+                      verticalAlign="middle">
+             
+				<s:HGroup paddingLeft="2" paddingTop="2" enabled="{map.loaded}">	
+					<s:Image source="@Embed('assets/images/i_zoomfull.png')" 
+							 click="doNavAction('zoomfull', zoomFullextItem.toolName)"
+							 toolTip="{zoomFullextItem.toolName}"
+							 visible="{zoomFullextItem.toolVisible}"
+							 buttonMode="true"/>
+					<s:Image source="@Embed('assets/images/i_zoomprevious.png')" 
+							 click="doNavAction('zoomprevious', prevextItem.toolName)"
+							 toolTip="{prevextItem.toolName}"
+							 visible="{prevextItem.toolVisible}"
+							 buttonMode="true"/>
+					<s:Image source="@Embed('assets/images/i_zoomnext.png')" 
+							 click="doNavAction('zoomnext', nextextItem.toolName)"
+							 toolTip="{nextextItem.toolName}"
+							 visible="{nextextItem.toolVisible}"
+							 buttonMode="true"/>
+					<s:ButtonBar id="btnMapCmdlBar" buttonMode="true"
+								 requireSelection="true"
+								 selectedIndex="0"
+								 skinClass="widgets.HeaderController.ButtonBarSkin"
+								 change="buttonbar1_changeHandler(event)"
+								 valueCommit="buttonbar1_valueCommitHandler(event)">
+						<s:layout>
+							<s:HorizontalLayout gap="2"/>
+						</s:layout>
+					</s:ButtonBar>
+					<s:HGroup paddingLeft="2" paddingTop="0" enabled="{map.loaded}">
+					<s:Image source="@Embed('assets/images/i_list.png')" top="0"
+							 click="showPrjList()" 
+							 toolTip="Scenario Management"
+							 buttonMode="true"/>
+					<s:Image source="@Embed('assets/images/i_hydro.png')" top="0"
+								 click="AddST()" 
+								 toolTip="RainStation"
+								 buttonMode="true"/>
+					<components:GeocoderComponent id="singleLineSearch"
+												  width="130" height="28"
+												  includeInLayout="false"
+												  visible="false"/>
+					</s:HGroup>
+				</s:HGroup>
+            </s:HGroup>
+        </s:Group>
+
+        <s:VGroup id="menuToolTip"
+                  x="{menuToolTipBox.width/2}" y="{headerContent.height}"
+                  gap="0"
+                  horizontalAlign="center"
+                  visible="false">
+            <s:Graphic id="menuTriangle" visible="{menuToolTip.visible}">
+                <s:Group>
+                    <s:Path data="m 7 0 l 7 14 l -14 0 z">
+                        <s:fill>
+                            <s:SolidColor alpha="1" color="{getStyle('contentBackgroundColor')}"/>
+                        </s:fill>
+                    </s:Path>
+                </s:Group>
+            </s:Graphic>
+
+            <s:BorderContainer id="menuToolTipBox"
+                               width="{menuTitle.width + 8}" height="{menuTitle.height +2}"
+                               backgroundColor="{getStyle('contentBackgroundColor')}"
+                               borderVisible="false"
+                               cornerRadius="10"
+                               visible="{menuToolTip.visible}">
+                <s:layout>
+                    <s:HorizontalLayout horizontalAlign="center" verticalAlign="middle"/>
+                </s:layout>
+
+                <s:Label id="menuTitle"
+                         paddingBottom="4"
+                         paddingLeft="5"
+                         paddingRight="5"
+                         paddingTop="5"
+                         visible="{menuToolTip.visible}"/>
+            </s:BorderContainer>
+        </s:VGroup>
+    </s:Group>
+</viewer:BaseWidget>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ReferenceGroup xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" ID="cbd33afb-9719-4f4d-8022-7f3ab7edd60e" xmlns="urn:schemas-microsoft-com:xml-wcfservicemap">
+  <ClientOptions>
+    <GenerateAsynchronousMethods>false</GenerateAsynchronousMethods>
+    <EnableDataBinding>true</EnableDataBinding>
+    <ExcludedTypes />
+    <ImportXmlTypes>false</ImportXmlTypes>
+    <GenerateInternalTypes>false</GenerateInternalTypes>
+    <GenerateMessageContracts>false</GenerateMessageContracts>
+    <NamespaceMappings />
+    <CollectionMappings />
+    <GenerateSerializableTypes>true</GenerateSerializableTypes>
+    <Serializer>Auto</Serializer>
+    <UseSerializerForFaults>true</UseSerializerForFaults>
+    <ReferenceAllAssemblies>true</ReferenceAllAssemblies>
+    <ReferencedAssemblies />
+    <ReferencedDataContractTypes />
+    <ServiceContractMappings />
+  </ClientOptions>
+  <MetadataSources>
+    <MetadataSource Address="http://101.6.54.28:8081/GlobalForcastRainDataWebService/GlobalForcastRainDataServer?wsdl" Protocol="http" SourceId="1" />
+  </MetadataSources>
+  <Metadata>
+    <MetadataFile FileName="GlobalForcastRainDataServer.wsdl" MetadataType="Wsdl" ID="18e12e57-0fbd-46a4-8c9e-48bf9db89734" SourceId="1" SourceUrl="http://101.6.54.28:8081/GlobalForcastRainDataWebService/GlobalForcastRainDataServer?wsdl=GlobalForcastRainDataServer.wsdl" />
+    <MetadataFile FileName="GlobalForcastRainDataInfo.wsdl" MetadataType="Wsdl" ID="976730ec-0b97-4284-a230-9366c71249ad" SourceId="1" SourceUrl="http://101.6.54.28:8081/GlobalForcastRainDataWebService/GlobalForcastRainDataServer?wsdl" />
+  </Metadata>
+  <Extensions>
+    <ExtensionFile FileName="configuration91.svcinfo" Name="configuration91.svcinfo" />
+    <ExtensionFile FileName="configuration.svcinfo" Name="configuration.svcinfo" />
+  </Extensions>
+</ReferenceGroup>

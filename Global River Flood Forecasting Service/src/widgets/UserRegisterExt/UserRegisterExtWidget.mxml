@@ -1,0 +1,377 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009"
+				   xmlns:s="library://ns.adobe.com/flex/spark"
+				   xmlns:mx="library://ns.adobe.com/flex/mx"
+				   xmlns:esri="http://www.esri.com/2008/ags"
+				   xmlns:viewer="com.esri.viewer.*"
+				   xmlns:components="com.esri.viewer.components.*"
+				   initialize="basewidget_initializeHandler()"
+				   widgetConfigLoaded="basewidget_widgetConfigLoaded()">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.geometry.Extent;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.ags.utils.GraphicUtil;
+			import com.esri.ags.utils.JSONUtil;
+			
+			import com.esri.viewer.AppEvent;
+			import com.esri.viewer.AppUtil;
+			import com.esri.viewer.ViewerContainer;
+			import com.esri.viewer.utils.Hashtable;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			private var reqUrl:String="";
+		    private var SID:String="";
+			private var newObj:Object;
+			private function basewidget_initializeHandler():void
+			{
+				wTemplate.width=370;
+				wTemplate.height=150;
+				wTemplate.enableCloseButton=false;
+				wTemplate.enableMinimizeButton=false;
+			}
+			//添加监听
+			protected function basewidget_widgetConfigLoaded():void{	
+				if (configXML){
+					reqUrl = configXML.url;
+				}
+				var timer:Timer=new Timer(100,1);
+				timer.addEventListener(TimerEvent.TIMER_COMPLETE,onTimerComplete);
+				timer.start();
+			}
+			private function onTimerComplete(event:TimerEvent):void{
+				//监听
+				AppEvent.addListener(AppEvent.DATA_PUBLISH,sharedDataUpdatedPublish);
+				AppEvent.addListener(AppEvent.DATA_SENT,sharedDataUpdated);
+				AppEvent.dispatch(AppEvent.DATA_FETCH_ALL);
+				//20141130修改
+				//AppEvent.addListener(AppEvent.DATA_PUBLISH,dataSentHandler);
+				//AppEvent.dispatch(AppEvent.DATA_FETCH_ALL);
+			}
+			private function dataSentHandler(event:AppEvent):void
+			{
+				if(event.data is Hashtable)
+				{
+					var dataCollection:Object = event.data.find("UserRegist");
+					if(dataCollection !=null){		
+						newObj=dataCollection;
+						GetUserInfonew(dataCollection);
+					}
+				}
+				else
+				{
+					var data:Object = event.data;
+					if(data.key=="UserRegist")
+					{
+						//当前用户名称
+						if(data.dataCollection !=null)
+						{		
+							newObj=data.dataCollection;
+							GetUserInfonew(data.dataCollection);
+						}
+					}
+				}
+			}
+			private function GetUserInfonew(newObj:Object):void
+			{				
+				Msg1.text="The area of river basin is："+newObj.feature.attributes["UPSUBAREA"].toString()+" Square kilometers";
+				var s:Number=Number(newObj["RCSum"])-Number(newObj["RC"]);
+				if(s>0)
+				{
+					Msg2.text="You can also choose "+(s-1)+" rivers";
+				}else
+				{
+					Msg2.text="Now you have choosed all rivers";
+				}
+				
+				//Alert.show("您当前选中的流域面积是："+newObj.area+"平方公里","第 "+（nc+1）+" 个河段",Alert.YES|Alert.NO,this,Alert.showClickHandlerR);			
+			}
+			private function sharedDataUpdated(event:AppEvent):void{
+				var data:Object = event.data.find("UserRegist");
+				//当前用户名称
+				if(data !=null){
+					var ac:ArrayCollection=data as ArrayCollection;
+					//GetUserInfo(ac);
+					newObj=ac.getItemAt(0);
+					GetUserInfonew(ac.getItemAt(0));
+				}
+			}
+			private function GetUserInfo(ac:ArrayCollection):void
+			{				
+				newObj=ac.getItemAt(0) as Object;
+				Msg1.text="The area of river basin is："+newObj.feature.attributes["UPSUBAREA"].toString()+" Square kilometers";
+				Msg2.text="You can also choose "+(Number(newObj["RCSum"])-Number(newObj["RC"])-1)+" rivers";
+			}
+			private function sharedDataUpdatedPublish(event:AppEvent):void{
+				var data:Object = event.data;
+				//当前用户注册信息
+				if(data.key=="UserRegist")
+				{
+					var ac:ArrayCollection=data.collection;
+					//GetUserInfo(ac);
+					newObj=ac.getItemAt(0);
+					GetUserInfonew(ac.getItemAt(0));
+				}				
+			}
+			//为每个流域出口建立方案
+			protected function submit_clickHandler(event:MouseEvent):void
+			{
+				if(this.txtAName.text !="")
+				{
+					//判断河段的binstrval是否为0
+					/*
+					var gra:Graphic=newObj["feature"] as Graphic;
+					var attrs:Object=gra.attributes;
+					var graLayer:GraphicsLayer;
+					if(attrs.BINSTRVAL !="0")
+					{
+						Alert.show("请选择“BINSTRVAL=0”的出口河段","提示");
+						//删除当前选中的出口河段
+						graLayer=map.getLayer("userGraphics") as GraphicsLayer;
+						graLayer.remove(newObj["feature"]);
+						return;
+					}else
+					{
+					   //建立出口河段的方案
+					   getWaterPrjNewId();
+					}
+					*/
+					//建立出口河段的方案
+					getWaterPrjNewId();
+				}else
+				{
+					Alert.show("Please enter the region name","Info");
+				}
+			}
+			protected function reset_clickHandler(event:MouseEvent):void
+			{
+				this.txtAName.text="";
+			}
+			protected function cancel_clickHandler(event:MouseEvent):void
+			{
+				DelFeature();
+				//关闭窗口
+				AppEvent.dispatch(AppEvent.WIDGET_CLOSE, ViewerContainer.getInstance().getWidgetId("用户注册范围"));
+			}
+			
+			//获取新方案ID
+			private function getWaterPrjNewId():void{
+				try{
+					var params:URLVariables = new URLVariables();
+					params.slnclass="w";
+					var url:String=reqUrl+"WinderHandler.aspx?act=scmnewid";
+					AppUtil.req(url,params,onGetWaterPrjNewIdResult);
+					this.cursorManager.setBusyCursor();	
+				}
+				catch(err:Error){
+					this.cursorManager.removeBusyCursor();
+					showError(String(err),"Info");
+				}
+			}
+			private function onGetWaterPrjNewIdResult(event:ResultEvent):void{
+				var strResult:String=event.result as String;
+				this.cursorManager.removeBusyCursor();	
+				if(strResult){
+					var obj:Object=JSON.parse(strResult);
+					if(obj.id!=""){
+						//方案编号
+						SID=obj.id;
+						//缺少添加新方案的接口
+						newWaterPrj_clickHandler();
+						
+					}					
+				}
+			}
+			//创建流域出口河段方案
+			protected function newWaterPrj_clickHandler():void
+			{	
+				var params:URLVariables = new URLVariables();
+				params.sid=SID;
+				params.name=this.txtAName.text;				
+				params.slnclass="w";			
+				//用户名
+				params.username=newObj["username"];
+				try{
+					//上传新建方案参数
+					var url:String=reqUrl+"WinderHandler.aspx?act=newscm";					
+					AppUtil.req(url,params,onNewWaterPrjResult,onFault);
+					this.cursorManager.setBusyCursor();
+				}
+				catch(err:Error){
+					this.cursorManager.removeBusyCursor();
+					showError(String(err),"Info");
+				}
+			}
+			
+			//上传新建方案参数  返回结果
+			private function onNewWaterPrjResult(event:ResultEvent):void
+			{
+				var strResult:String=event.result as String;
+				if(strResult)
+				{;
+					var obj:Object=JSON.parse(strResult);
+					if(obj.msg=="ok"){
+						/*
+						configData.scmid=newPrjId;
+						var ac:ArrayCollection=new ArrayCollection();
+						ac.addItem(newPrjName);
+						addSharedData("currprjname",ac);
+						Alert.show("操作成功！",title);
+					   */
+						//提交河段选择
+						OnSubmitSel();
+					}
+					else{
+						Alert.show("Failed！","Info");
+					}
+				}
+			}
+			//提交河段段选择			
+			private function OnSubmitSel():void
+			{	
+				//var graphicArray:ArrayCollection=map.defaultGraphicsLayer.graphicProvider as ArrayCollection;
+				var str:String="";
+			
+				var gra:Graphic=newObj["feature"] as Graphic;
+				var attrs:Object=gra.attributes;
+				
+				var newobj:Object={
+					    sid:SID,
+						isapply:"1",
+						username:newObj["username"],
+						regionid:attrs.REGIONCODE,
+						binstrlen:attrs.BINSTRLEN,
+						binstrval:attrs.BINSTRVAL,
+						UPSUBAREA:attrs.UPSUBAREA,
+						reghighid:"",
+						shape:JSONUtil.encode(gra.geometry)
+				};
+				
+				str=JSON.stringify(newobj);
+				
+				var ext:Extent=	GraphicUtil.getGraphicsExtent(new Array(gra));
+				var extStr:String=""+ext.xmax+";"+ext.xmin+";"+ext.ymax+";"+ext.ymin;
+				
+				try 
+				{
+					var params:URLVariables=new URLVariables();
+					params.rslt="{\"features\":["+str+"],\"extent\":"+extStr+"}";
+					var url:String=reqUrl+"WinderHandler.aspx?act=addrgnsel";
+					//trace(params.rslt);
+					AppUtil.req(url,params,onSubmitWaterPrjSelectedShape,onFault,"POST",false,"text",600000);	
+					//this.cursorManager.setBusyCursor();	
+				}
+				catch(err:Error)
+				{
+					this.cursorManager.removeBusyCursor();
+				}				
+			}
+			private function onSubmitWaterPrjSelectedShape(event:ResultEvent):void
+			{
+				var strResult:String=event.result as String;
+				this.cursorManager.removeBusyCursor();	
+				if(strResult)
+				{
+					var obj:Object=JSON.parse(strResult);
+					var gra:GraphicsLayer;
+					if(obj.msg=="ok")
+					{
+						Alert.show("Success！","Info");
+						//关闭窗口
+						AppEvent.dispatch(AppEvent.WIDGET_CLOSE, ViewerContainer.getInstance().getWidgetId("用户注册范围"));
+					}else if(obj.msg=="error")
+					{
+						//Alert.show("流域出口和方案创建失败,请重新选择河段","区域选择");
+						gra=map.getLayer("userGraphics") as GraphicsLayer;
+						gra.remove(newObj["feature"]);
+						//删除当前没有正确提交河段的方案
+						deletePrjNew();
+						//map.getLayer("userGraphics").graphics.   .removeChildAt(newObj["RC"]);
+					}else if(obj.msg=="errorUser")
+					{
+						Alert.show("You have no permission to create new schema in this basin, please contact the administrator","Info");
+						gra=map.getLayer("userGraphics") as GraphicsLayer;
+						gra.remove(newObj["feature"]);
+						//map.getLayer("userGraphics").removeChildAt(newObj["RC"]);
+					}	
+				}
+			}
+			//删除提交河段失败的方案
+			private function deletePrjNew():void{
+				try{
+					if(SID !="")
+					{
+						var params:URLVariables = new URLVariables();
+						params.sid=SID;
+						var url:String=reqUrl+"WinderHandler.aspx?act=scmnewdelete";
+						AppUtil.req(url,params,onDeletePrjNewResult);
+						this.cursorManager.setBusyCursor();	
+					}
+				}
+				catch(err:Error){
+					this.cursorManager.removeBusyCursor();
+					showError(String(err),"Info");
+				}
+			}
+			private function onDeletePrjNewResult(event:ResultEvent):void{
+				var strResult:String=event.result as String;
+				this.cursorManager.removeBusyCursor();	
+				if(strResult){
+					var obj:Object=JSON.parse(strResult);
+					if(obj.msg=="ok")
+					{
+						Alert.show("Failed,please select a river again","Info");
+						//关闭窗口
+						AppEvent.dispatch(AppEvent.WIDGET_CLOSE, ViewerContainer.getInstance().getWidgetId("用户注册范围"));
+					}
+					else
+					{
+						Alert.show("Failed","Info");
+					}
+				}
+			}
+			private function onFault(info:Object, token:Object = null) : void
+			{                    
+				this.cursorManager.removeBusyCursor(); 
+				DelFeature();
+				//map.getLayer("userGraphics").removeChildAt(newObj["RC"]);
+				//map.defaultGraphicsLayer.clear();				
+			}
+			private function DelFeature():void
+			{
+				var gra:GraphicsLayer=map.getLayer("userGraphics") as GraphicsLayer;
+				gra.remove(newObj["feature"]);
+			}
+			protected function wTemplate_openHandler(event:Event):void
+			{
+				this.txtAName.text="";
+				//AppEvent.addListener(AppEvent.DATA_SENT,dataSentHandler);
+				//AppEvent.dispatch(AppEvent.DATA_FETCH_ALL);
+			}			
+		]]>
+	</fx:Script>
+	<viewer:WidgetTemplate id="wTemplate" minWidth="370" minHeight="150"
+						   open="wTemplate_openHandler(event)">  
+		<s:VGroup width="100%" height="100%"> 
+			<s:HGroup width="100%" height="100%">
+				<s:Label text="Please enter the region name："/>
+				<s:TextInput id="txtAName" width="100%"/>
+			</s:HGroup>
+			<s:Label id="Msg1"/>
+			<s:Label id="Msg2"/>			
+			<s:HGroup width="100%" height="100%" horizontalAlign="center">
+				<mx:Button label="OK" id="submit" click="submit_clickHandler(event)"/>  
+				<mx:Button label="Empyt" id="reset" click="reset_clickHandler(event)"/> 
+				<mx:Button label="Cancel" id="cancel" click="cancel_clickHandler(event)"/> 
+			</s:HGroup>
+		</s:VGroup>
+	</viewer:WidgetTemplate>
+</viewer:BaseWidget>

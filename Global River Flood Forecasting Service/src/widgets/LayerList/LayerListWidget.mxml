@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewer1:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009"
+                   xmlns:s="library://ns.adobe.com/flex/spark"
+                   xmlns:mx="library://ns.adobe.com/flex/mx"
+                   xmlns:viewer="com.esri.viewer.*"
+                   xmlns:toc="com.esri.viewer.components.toc.*"
+                   initialize="basewidget_initializeHandler()"
+                   widgetConfigLoaded="basewidget_widgetConfigLoaded()" 
+				   xmlns:viewer1="com.esri.viewer.*">
+    <fx:Script>
+        <![CDATA[
+            import com.esri.viewer.AppEvent;
+
+            import mx.collections.ArrayCollection;
+
+            [Bindable]
+            private var title:String;
+            private var includeLegendItems:Boolean = true; 
+            private var showLayerMenu:Boolean = true; 
+
+            private function basewidget_initializeHandler():void
+            {
+                    wTemplate.width =240;
+					wTemplate.height = 360;
+            }
+
+            private function basewidget_widgetConfigLoaded():void
+            {
+                var expandLayerItems:Boolean = false;
+
+                if (configXML)
+                {
+                    title = configXML.labels.title || getDefaultString("layerListTitle");
+                    expandLayerItems = configXML.expandlayeritems == "true";
+                    if (configXML.includelegenditems.length())
+                    {
+                        includeLegendItems = configXML.includelegenditems == "true";
+                    }
+                    if (configXML.showlayermenu.length())
+                    {
+                        showLayerMenu = configXML.showlayermenu == "true";
+                    }
+                }
+
+                if (configData && configData.opLayers.length > 0) 
+                {
+                    initTOC(expandLayerItems);
+                }
+            }
+
+            private function initTOC(expandLayerItems:Boolean = false):void
+            {
+                toc.map = map;
+                toc.isMapServiceOnly = false; 
+                toc.excludeLayers = getExcludeLayers();
+                toc.basemapLayers = getBasemapLayers();
+                toc.excludeGraphicsLayers = true;
+                toc.includeLegendItems = includeLegendItems;
+                toc.showLayerMenu = showLayerMenu;
+                toc.expandLayerItems = expandLayerItems;
+            }
+
+            private function getExcludeLayers():ArrayCollection
+            {
+                var result:ArrayCollection = getBasemapLayers();
+
+                if (configXML)
+                {
+                    var layers:XMLList = configXML.excludelayer as XMLList;
+                    for (var j:Number = 0; j < layers.length(); j++)
+                    {
+                        result.addItem(layers[j].toString());
+                    }
+                }
+
+                return result;
+            }
+
+            private function getBasemapLayers():ArrayCollection
+            {
+                var result:ArrayCollection = new ArrayCollection();
+
+                if (configData && configData.basemaps)
+                {
+                    for (var i:int = 0; i < configData.basemaps.length; i++)
+                    {
+                        result.addItem(configData.basemaps[i].label);
+                    }
+                }
+
+                return result;
+            }
+        ]]>
+    </fx:Script>
+    <viewer1:WidgetTemplate id="wTemplate"
+                           closed="AppEvent.dispatch(AppEvent.TOC_HIDDEN)"
+                           minimized="AppEvent.dispatch(AppEvent.TOC_HIDDEN)"
+                           startDrag="AppEvent.dispatch(AppEvent.TOC_HIDDEN)">
+        <viewer:layout>
+            <s:VerticalLayout gap="8" paddingTop="4"/>
+        </viewer:layout>
+        <toc:TOC id="toc"                 width="100%" height="100%"/>
+    </viewer1:WidgetTemplate>
+</viewer1:BaseWidget>

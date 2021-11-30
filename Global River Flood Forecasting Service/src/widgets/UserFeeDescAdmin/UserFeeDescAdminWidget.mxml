@@ -1,0 +1,383 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx"
+				   xmlns:esri="http://www.esri.com/2008/ags"
+				   xmlns:viewer="com.esri.viewer.*"
+				   xmlns:components="com.esri.viewer.components.*"
+				   initialize="basewidget_initializeHandler()"
+				   widgetConfigLoaded="basewidget_widgetConfigLoaded()">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.viewer.AppEvent;
+			import com.esri.viewer.AppUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.IndexChangedEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import spark.events.GridEvent;
+			
+			private var theResults_commit:ArrayCollection=new ArrayCollection();
+			private var theResults_storage:ArrayCollection=new ArrayCollection();
+
+			private var reqUrl:String="";
+			[Bindable]
+			private var styleAlpha:Number;
+			private function basewidget_initializeHandler():void
+			{
+				wTemplate.width = 550;
+				wTemplate.height = 350;
+			}
+			protected function basewidget_widgetConfigLoaded():void
+			{	
+				if (configXML)
+				{
+					reqUrl = configXML.url;
+				}
+				styleAlpha=configData.styleAlpha;
+				
+				getFeeList();
+			}
+			private function getFeeList():void{
+				try{
+					var url:String=reqUrl+"WinderHandler.aspx?act=getfeedesc";					
+					AppUtil.req(url,null,onGetWaterPrjNewIdResult,onFault);
+					this.cursorManager.setBusyCursor();	
+				}
+				catch(err:Error){
+					this.cursorManager.removeBusyCursor();
+					showError(String(err),"Info");
+				}
+			}
+			//读取项目列表	
+			private function onGetWaterPrjNewIdResult(event:ResultEvent):void{
+				this.cursorManager.removeBusyCursor();	
+				var strResult:String=event.result as String;
+				if(prjListDG_Commit.dataProvider){
+					prjListDG_Commit.dataProvider.removeAll();
+				}
+				
+				if(strResult){
+					//解析Json字符串
+					var obj:Object=JSON.parse(strResult);
+					if(obj!=null){
+						var objrows:Array=obj.obj as Array;
+						var rows_commit:Array=objrows[0].rows as Array;
+						var rows_storage:Array=objrows[1].rows as Array;
+						var sln:Object;
+						//计算费用单价
+						for(var i:int=0;i<rows_commit.length;i++){
+							sln=rows_commit[i];
+							theResults_commit.addItem(sln);
+						}
+						//存储费用单价
+						for(var j:int=0;j<rows_storage.length;j++){
+							sln=rows_storage[j];
+							theResults_storage.addItem(sln);
+						}
+						prjListDG_Commit.dataProvider=theResults_commit;	
+					}
+				}
+				else{
+					this.cursorManager.removeBusyCursor();	
+				}
+			}
+			//读取项目列表  错误提示
+			private function onFault(info:Object, token:Object = null) : void{                    
+				this.cursorManager.removeBusyCursor(); 
+			}
+			private function widgetOpenedHandler(event:Event):void{
+				getFeeList();		
+			}
+			
+			protected function tabnavigator1_changeHandler(event:IndexChangedEvent):void
+			{
+				if(tabNavi.selectedIndex==1 && prjListDG_Storage.dataProvider==null)
+				{
+					prjListDG_Storage.dataProvider=theResults_storage;	
+				}
+			}
+			
+			protected function prjListDG_Commit_gridClickHandler(event:GridEvent):void
+			{
+				if(prjListDG_Commit.selectedIndex>=0)
+				{					
+					var obj:Object =theResults_commit.getItemAt(prjListDG_Commit.selectedIndex);
+					LEVELUSERID.selectedItem=obj.LEVELUSERID;
+					LEVELSIDID.selectedItem=obj.LEVELSIDID;
+					UPRICECORES.text=obj.UPRICECORES;
+					UPRICEDISCOUNT_C.value=obj.UPRICEDISCOUNT_C;
+				}
+			}
+			
+			protected function prjListDG_Storage_gridClickHandler(event:GridEvent):void
+			{
+				if(prjListDG_Storage.selectedIndex>=0)
+				{					
+					var obj:Object =theResults_storage.getItemAt(prjListDG_Storage.selectedIndex);
+					LEVELUSERID_S.selectedItem=obj.LEVELUSERID;
+					LEVELSIDID_S.selectedItem=obj.LEVELSIDID;
+					UPRICESTORAGE.text=obj.UPRICESTORAGE;
+					UPRICEDISCOUNT_S.value=obj.UPRICEDISCOUNT_S;
+				}
+			}
+			
+			protected function btn_clickHandler(event:MouseEvent):void
+			{
+			   var pLEVELUSERID:String="";
+			   var pLEVELSIDID:String="";
+			   var pUPRICE:Number=0;
+			   var pUPRICEDISCOUNT:Number=0;
+
+			   var btn:Button=event.target as Button;
+			   switch(btn.id)
+			   {
+				   case "btnAdd":
+				   case "btnEdit":
+					   if(LEVELUSERID.selectedItem !="")
+						   pLEVELUSERID=LEVELUSERID.selectedItem;
+					   else
+					   {
+						   Alert.show("Please input user level","Info");
+						   return;
+					   }
+					   if(LEVELSIDID.selectedItem !="")
+						   pLEVELSIDID=LEVELSIDID.selectedItem;
+					   else
+					   {
+						   Alert.show("Please input compute level","Info");
+						   return;
+					   }
+					   if(UPRICECORES.text !="" && !isNaN(Number(UPRICECORES.text)))
+						   pUPRICE=Number(UPRICECORES.text);
+					   else
+					   {
+						   Alert.show("Please verify the compute unit price","Info");
+						   return;
+					   }
+					   //是否为数字
+					   if(UPRICEDISCOUNT_C.value !=0 && !isNaN(Number(UPRICEDISCOUNT_C.value)))
+						   pUPRICEDISCOUNT=UPRICEDISCOUNT_C.value;
+					   else
+					   {
+						   Alert.show("Please verify the discount","Info");
+						   return;
+					   }					   
+					   break;
+				   case "btnAdd_S":
+				   case "btnEdit_S":					  
+					   if(LEVELUSERID_S.selectedItem !="")
+						   pLEVELUSERID=LEVELUSERID_S.selectedItem;
+					   else
+					   {
+						   Alert.show("Please input user level","Info");
+						   return;
+					   }
+					   if(LEVELSIDID_S.selectedItem !="")
+						   pLEVELSIDID=LEVELSIDID_S.selectedItem;
+					   else
+					   {
+						   Alert.show("Please input compute level","Info");
+						   return;
+					   }
+					   if(UPRICESTORAGE.text !="" && !isNaN(Number(UPRICESTORAGE.text)))
+						   pUPRICE=Number(UPRICESTORAGE.text);
+					   else
+					   {
+						   Alert.show("Please verify the storage unit price","Info");
+						   return;
+					   }
+					   //是否为数字
+					   if(UPRICEDISCOUNT_S.value !=0 && !isNaN(Number(UPRICEDISCOUNT_S.value)))
+						   pUPRICEDISCOUNT=UPRICEDISCOUNT_S.value;
+					   else
+					   {
+						   Alert.show("Please verify the discount","Info");
+						   return;
+					   }
+					   break;
+			   }
+			   //执行后台服务
+			   try{
+				   var url:String=reqUrl+"WinderHandler.aspx?act=setfeedesc";	
+				   var params:URLVariables = new URLVariables();
+				   params.datatype=btn.id;
+				   params.pLEVELUSERID=pLEVELUSERID;
+				   params.pLEVELSIDID=pLEVELSIDID;
+				   params.pUPRICE=pUPRICE.toString();
+				   params.pUPRICEDISCOUNT=pUPRICEDISCOUNT.toString();	
+				   AppUtil.req(url,params,onSetPriceResult,onFault);
+				   this.cursorManager.setBusyCursor();	
+			   }
+			   catch(err:Error){
+				   this.cursorManager.removeBusyCursor();
+				   showError(String(err),"Info");
+			   }
+			}
+			private function onSetPriceResult(event:ResultEvent):void{
+				var strResult:String=event.result as String;
+				this.cursorManager.removeBusyCursor();	
+				if(strResult){
+					var obj:Object=JSON.parse(strResult);
+					if(obj.msg=="ok")
+					{
+						Alert.show("Set up Successfully");	
+					}else
+					{
+						Alert.show("Set up failed","Info");
+					}
+				}
+				else{
+					this.cursorManager.removeBusyCursor();
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<viewer:WidgetTemplate id="wTemplate" open="widgetOpenedHandler(event)">
+		<mx:TabNavigator id="tabNavi" width="100%" height="100%" fontSize="12" cornerRadius="4" change="tabnavigator1_changeHandler(event)">
+			<s:NavigatorContent label="Compute Unit price List:" width="100%" height="100%">
+				<mx:VBox width="100%" height="100%" paddingBottom="1" paddingLeft="1" paddingRight="1" paddingTop="1">
+					<s:VGroup width="100%" height="100%" verticalAlign="middle">
+						<mx:Grid width="100%">
+							<mx:GridRow width="100%" verticalAlign="middle" >
+								<mx:GridItem verticalAlign="middle">
+									<s:Label text="User Level："/>
+								</mx:GridItem>
+								<mx:GridItem verticalAlign="middle">
+									<s:ComboBox id="LEVELUSERID"/>
+								</mx:GridItem>
+								<mx:GridItem verticalAlign="middle">
+									<s:Label text="Compute Level："/>
+								</mx:GridItem>
+								<mx:GridItem verticalAlign="middle">
+									<s:ComboBox id="LEVELSIDID"/>
+								</mx:GridItem>
+							</mx:GridRow>
+							<mx:GridRow width="100%" verticalAlign="middle">
+								<mx:GridItem verticalAlign="middle">
+									<s:Label text="Compute Unit Price(yuan/minute*core)："/> 
+								</mx:GridItem>
+								<mx:GridItem verticalAlign="middle">
+									<s:TextInput id="UPRICECORES" width="100%"/>
+								</mx:GridItem>
+								<mx:GridItem verticalAlign="middle">
+									<s:Label text="Discount："/>
+								</mx:GridItem>
+								<mx:GridItem verticalAlign="middle">
+									<s:NumericStepper id="UPRICEDISCOUNT_C" minimum="0" maximum="1" stepSize="0.05" width="100%" value="0.80"/>
+								</mx:GridItem>
+							</mx:GridRow>
+						</mx:Grid>
+						<!--
+						<s:HGroup width="100%" verticalAlign="middle">
+							<s:Label text="用户级别："/>
+							<s:ComboBox id="LEVELUSERID"/>
+							<s:Label text="计算级别："/>
+							<s:ComboBox id="LEVELSIDID"/>
+						</s:HGroup>
+						<s:HGroup width="100%" verticalAlign="middle">
+							<s:Label text="计算单价(元/分钟*核)："/> 
+							<s:TextInput id="UPRICECORES" width="100%"/>
+							<s:Label text="折扣率："/>
+							<s:NumericStepper id="UPRICEDISCOUNT_C" minimum="0" maximum="1" stepSize="0.05" width="100%"/>
+						</s:HGroup>
+						-->
+						<s:HGroup width="100%" horizontalAlign="right">
+							<s:Button id="btnAdd" label="New"  fontFamily="宋体" click="btn_clickHandler(event)"/>
+							<s:Button id="btnEdit" label="Edit"  click="btn_clickHandler(event)"/>
+						</s:HGroup>
+						<s:DataGrid width="100%" height="100%" id="prjListDG_Commit" alpha="{styleAlpha}"
+									chromeColor="0xF21515" gridClick="prjListDG_Commit_gridClickHandler(event)"
+									alternatingRowColors="[ #FFFFFF,#EFEFF0]">
+							<s:columns>
+								<s:ArrayList>
+									<s:GridColumn dataField="LEVELUSERID" headerText="User Level" sortable="true" ></s:GridColumn>
+									<s:GridColumn dataField="LEVELSIDID" headerText="Compute Level" sortable="true"></s:GridColumn>
+									<s:GridColumn dataField="UPRICECORES" headerText="Compute Unit Price(yuan/minute*core)"></s:GridColumn>
+									<s:GridColumn dataField="UPRICEDISCOUNT_C" headerText="Discount"></s:GridColumn>
+								</s:ArrayList>
+							</s:columns>
+							<s:typicalItem>  
+								<fx:Object LEVELUSERID="22" LEVELSIDID="22" UPRICECORES="222222" UPRICEDISCOUNT_C="222" ></fx:Object>  
+							</s:typicalItem>			
+						</s:DataGrid>
+					</s:VGroup>					
+				</mx:VBox>				
+			</s:NavigatorContent> 
+			<s:NavigatorContent label="Storage Unit price List" width="100%" height="100%">
+				<mx:VBox width="100%" height="100%" paddingBottom="1" paddingLeft="1" paddingRight="1" paddingTop="1">
+					<s:VGroup width="100%" height="100%">
+						<mx:Grid width="100%">
+							<mx:GridRow width="100%" verticalAlign="middle" >
+								<mx:GridItem verticalAlign="middle">
+									<s:Label text="User Level："/>
+								</mx:GridItem>
+								<mx:GridItem verticalAlign="middle">
+									<s:ComboBox id="LEVELUSERID_S"/>
+								</mx:GridItem>
+								<mx:GridItem verticalAlign="middle">
+									<s:Label text="Compute Level："/>
+								</mx:GridItem>
+								<mx:GridItem verticalAlign="middle">
+									<s:ComboBox id="LEVELSIDID_S"/>
+								</mx:GridItem>
+							</mx:GridRow>
+							<mx:GridRow width="100%" verticalAlign="middle">
+								<mx:GridItem verticalAlign="middle">
+									<s:Label text="Storage Unit Price(yuan/one thousand)："/>
+								</mx:GridItem>
+								<mx:GridItem verticalAlign="middle">
+									<s:TextInput id="UPRICESTORAGE" width="100%"/>
+								</mx:GridItem>
+								<mx:GridItem verticalAlign="middle">
+									<s:Label text="Discount："/>
+								</mx:GridItem>
+								<mx:GridItem verticalAlign="middle">
+									<s:NumericStepper id="UPRICEDISCOUNT_S" minimum="0" maximum="1" stepSize="0.05" width="100%" value="0.80"/>
+								</mx:GridItem>
+							</mx:GridRow>
+						</mx:Grid>
+						<!--<s:HGroup width="100%" verticalAlign="middle">
+							<s:Label text="用户级别："/>
+							<s:ComboBox id="LEVELUSERID_S"/>
+							<s:Label text="计算级别："/>
+							<s:ComboBox id="LEVELSIDID_S"/>
+						</s:HGroup>
+						<s:HGroup width="100%" verticalAlign="middle">
+							<s:Label text="存储单价(元/千条)："/>
+							<s:TextInput id="UPRICESTORAGE" width="100%"/>
+							<s:Label text="折扣率："/>
+							<s:NumericStepper id="UPRICEDISCOUNT_S" minimum="0" maximum="1" stepSize="0.05" width="100%"/>
+						</s:HGroup>-->
+						<s:HGroup width="100%" verticalAlign="middle"  horizontalAlign="right">
+							<s:Button id="btnAdd_S" label="New" fontFamily="宋体"  click="btn_clickHandler(event)"/>
+							<s:Button id="btnEdit_S" label="Edit"  click="btn_clickHandler(event)"/>
+						</s:HGroup>
+						<s:DataGrid width="100%" height="100%" id="prjListDG_Storage" alpha="{styleAlpha}"
+									chromeColor="0xF21515" gridClick="prjListDG_Storage_gridClickHandler(event)"
+									alternatingRowColors="[ #FFFFFF,#EFEFF0]">
+							<s:columns>
+								<s:ArrayList>
+									<s:GridColumn dataField="LEVELUSERID" headerText="User Level" sortable="true" ></s:GridColumn>
+									<s:GridColumn dataField="LEVELSIDID" headerText="Compute Level" sortable="true"></s:GridColumn>
+									<s:GridColumn dataField="UPRICESTORAGE" headerText="Storage Unit Price(yuan/one thousand)"></s:GridColumn>
+									<s:GridColumn dataField="UPRICEDISCOUNT_S" headerText="Discount"></s:GridColumn>
+								</s:ArrayList>
+							</s:columns>
+							<s:typicalItem>  
+								<fx:Object LEVELUSERID="22" LEVELSIDID="22" UPRICESTORAGE="22222222" UPRICEDISCOUNT_S="222" ></fx:Object>  
+							</s:typicalItem>			
+						</s:DataGrid>
+					</s:VGroup>					
+				</mx:VBox>				
+			</s:NavigatorContent> 
+		</mx:TabNavigator>		
+	</viewer:WidgetTemplate>
+</viewer:BaseWidget>

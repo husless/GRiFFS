@@ -1,0 +1,6 @@
+<?xml version="1.0" ?>
+<configuration label="Coordinates (default)">
+<!--    <outputunit>geo</outputunit> -->
+    <outputunit>dms</outputunit>    
+     <labelstyle color="0x000000" fontfamily="Verdana" fontsize="14" fontweight="bold"/>
+</configuration>

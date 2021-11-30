@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<configuration>
+<!-- 
+ <geocoder/>
+ -->
+    <prevextbutton  visible="true" icon="assets/images/i_zoomprevious.png" />
+    <nextextbutton  visible="true" icon="assets/images/i_zoomnext.png" />
+    <panbutton      visible="true" icon="assets/images/i_pan.png" />
+    <zoominbutton   visible="true" icon="assets/images/i_zoomin.png" />
+    <zoomoutbutton  visible="true" icon="assets/images/i_zoomout.png" />
+    <zoomfullbutton visible="true" icon="assets/images/i_zoomfull.png" />
+    <pointselbutton visible="true" icon="assets/images/i_draw_point.png" label="点选"/>
+    <rectselbutton  visible="true" icon="assets/images/i_draw_rect.png" label="框选"/>
+    <waterlinebutton  visible="true" icon="assets/images/i_linechart_water.png" label="水位过程"/>
+    <flowlinebutton  visible="true" icon="assets/images/i_linechart_flow.png" label="流量过程"/>
+    <vsectionbutton  visible="true" icon="assets/images/i_vsection.png" label="纵断面"/>
+</configuration>

@@ -1,0 +1,353 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewer:BaseWidget  xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:esri="http://www.esri.com/2008/ags"
+					xmlns:viewer="com.esri.viewer.*"
+					xmlns:components="com.esri.viewer.components.*"
+					initialize="basewidget_initializeHandler()"
+					widgetConfigLoaded="basewidget_widgetConfigLoaded()">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<s:DateTimeFormatter id="dateTimeFormatter" dateTimePattern="yyyy-MM-dd HH:mm:ss"/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[			
+			import com.as3xls.xls.Cell;
+			import com.as3xls.xls.ExcelFile;
+			import com.as3xls.xls.Formatter;
+			import com.as3xls.xls.Sheet;
+			
+			import com.esri.viewer.AppEvent;
+			import com.esri.viewer.AppUtil;
+			import com.esri.viewer.ViewerContainer;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.CheckBox;
+			import mx.rpc.events.ResultEvent;
+			
+			private var newObj:Object;			
+			private var ef:ExcelFile;
+			private var ba:ByteArray;
+			private var fr:FileReference;
+			private var pcheckbox:CheckBox; 
+			private var reqUrl:String="";
+			private var theResults:ArrayCollection=new ArrayCollection();
+			[Bindable]
+			private var flowData:ArrayCollection;
+			
+			[Bindable]
+			private var styleAlpha:Number;
+			//测试		
+			public var logData:ArrayCollection=new ArrayCollection([
+				{REGIONID:'2011-05-20',BINSTRLEN:'admin1',BINSTRVAL:'发射机电源故障',SHAPE:false,RNAME:"a",ISSELECT:1},
+				{REGIONID:'2011-05-20',BINSTRLEN:'admin1',BINSTRVAL:'发射机电源故障',SHAPE:false,RNAME:"b",ISSELECT:1},
+				{REGIONID:'2011-05-20',BINSTRLEN:'admin1',BINSTRVAL:'发射机电源故障',SHAPE:false,RNAME:"c",ISSELECT:0},
+				{REGIONID:'2011-05-20',BINSTRLEN:'admin1',BINSTRVAL:'发射机电源故障',SHAPE:false,RNAME:"d",ISSELECT:0},
+				
+			]);
+			
+			private function basewidget_initializeHandler():void
+			{
+				wTemplate.width=420;
+				wTemplate.height=350;				
+			}
+			protected function basewidget_widgetConfigLoaded():void{	
+				if (configXML){
+					reqUrl = configXML.url;
+				}
+				
+				ef = new ExcelFile();
+				ba = new ByteArray();
+				fr = new FileReference();
+				styleAlpha=configData.styleAlpha;
+				var timer:Timer=new Timer(1000,1);
+				timer.addEventListener(TimerEvent.TIMER_COMPLETE,onTimerComplete);
+				timer.start();
+			}
+			private function onTimerComplete(event:TimerEvent):void{
+				//getRaindataList();
+			}
+			private function getRaindataList():void{
+				try{
+					var url:String=reqUrl+"WinderHandler.aspx?act=reservoirInfo";
+					var params:URLVariables = new URLVariables();
+					params.sid=configData.scmid;
+					AppUtil.req(url,params,onGetReservoirListResult,onFault);
+					this.cursorManager.setBusyCursor();	
+				}
+				catch(err:Error){
+					this.cursorManager.removeBusyCursor();
+					showError(String(err));
+				}
+			}			
+			private function onGetReservoirListResult(event:ResultEvent):void{
+				this.cursorManager.removeBusyCursor();	
+				var strResult:String=event.result as String;
+				if(prjListDG.dataProvider){
+					prjListDG.dataProvider.removeAll();
+				}				
+				if(strResult){
+					var obj:Object=JSON.parse(strResult);
+					if(obj!=null){
+						var rows:Array=obj.rows as Array;
+						if(rows!=null && rows.length>0){
+							for(var i:int=0;i<rows.length;i++){
+								var sln:Object=rows[i];
+								switch(sln.ISSELECT)
+								{
+									case "1":
+										sln.ISSELECT=true;
+										break;
+									case "0":
+										sln.ISSELECT=false;
+										break;
+								}
+								sln.ID=i+1;
+								theResults.addItem(sln);
+							}
+							prjListDG.dataProvider=theResults;	
+						}
+					}
+				}
+				else{
+					this.cursorManager.removeBusyCursor();	
+				}
+			}
+			private function onFault(info:Object, token:Object = null) : void{                    
+				this.cursorManager.removeBusyCursor(); 
+			}
+		
+			private function importXLS():void { 
+				var fileFilter:FileFilter = new FileFilter("Excel (.xls)", "*.xls;*.xlsx;"); 
+				fr.addEventListener(Event.SELECT, selectXLS); 
+				fr.browse([fileFilter]); 
+			} 
+			private function selectXLS(e:Event):void {
+				fr = FileReference(e.target);				
+				fr.addEventListener(Event.COMPLETE, fileIn);
+				fr.load();
+			}
+			private function fileIn(e:Event):void {
+				filename.text=fr.name;
+				ba = fr.data;
+				ef.loadFromByteArray(ba);				
+				var sheet:Sheet = ef.sheets[0];
+				var tCols:int = sheet.cols;
+				var tRows:int = sheet.rows;				
+				var txt:String = ef.sheets.length + " sheets; " + tCols + " columns; " + tRows + " rows";
+				
+				flowData = new ArrayCollection();
+				var objtmp:Object;
+				for(var i:int=1; i<=tRows; i++)
+				{
+					objtmp=new Object();
+					objtmp.ID=sheet.getCell(i,0).value;
+					objtmp.STIME=Formatter.format(sheet.getCell(i,1),"yyyy-mm-dd hh:mm:ss");
+					objtmp.ETIME=Formatter.format(sheet.getCell(i,2),"yyyy-mm-dd hh:mm:ss");
+					objtmp.P=sheet.getCell(i,3).value;
+					if(objtmp.ID !="" && objtmp.STIME !="")
+						flowData.addItem(objtmp);
+				}
+				if(flowData.length>0)
+				{
+					this.prjListDG.dataProvider=flowData;
+				}else
+				{
+					Alert.show("文件打开失败","提示");
+				}
+			}
+			private function onGetReservoirFlowResult(event:ResultEvent):void{
+				this.cursorManager.removeBusyCursor();	
+				var strResult:String=event.result as String;				
+				if(strResult){
+					//解析Json字符串
+					var obj:Object=JSON.parse(strResult);
+					if(obj!=null){
+						var rows:Array=obj.rows as Array;
+						if(rows!=null && rows.length>0)
+						{
+							for(var i:int=0;i<rows.length;i++)
+							{
+								var sln:Object=rows[i];
+								flowData.addItem(sln);
+							}	
+							if(flowData.length>0)
+							{
+								flowData.addItemAt(newObj,0);
+								//共享数据
+								addSharedData("ReservoirShowFlow",flowData);
+								AppEvent.dispatch(AppEvent.WIDGET_RUN,ViewerContainer.getInstance().getWidgetId("出流数据"));
+							}	
+						}else
+						{
+							Alert.show("No Data","Information");
+						}
+					}
+				}
+				else{
+					this.cursorManager.removeBusyCursor();	
+				}
+			}
+			public function selectedAllorNot(event:MouseEvent):void{ 
+				pcheckbox = event.currentTarget as CheckBox; 
+				for each(var item:Object in theResults){ 
+					item.ISSELECT = pcheckbox.selected; 
+				} 
+				prjListDG.dataProvider = theResults; 
+			}			
+			
+			protected function wTemplate_openHandler(event:Event):void
+			{
+				//getReservoirList();
+			}
+			//确定
+			protected function btnOK_clickHandler(event:MouseEvent):void
+			{
+				var str:String="";
+				for each(var item:Object in theResults)
+				{
+					switch(item.ISSELECT)
+					{
+						case true:
+							item.ISSELECT=1;
+							break;
+						case false:
+							item.ISSELECT=0;
+							break;
+					}
+					str+=JSON.stringify(item)+",";
+				}
+				str=str.substr(0,str.length-1);
+				var params:URLVariables=new URLVariables();
+				params.rst="{\"rst\":["+str+"]}";
+				
+				var url:String=reqUrl+"WinderHandler.aspx?act=setreservoirCal";
+				AppUtil.req(url,params,onSetReservoirCal,onFault);
+				this.cursorManager.setBusyCursor();	
+			}
+			private function onSetReservoirCal(event:ResultEvent):void
+			{
+				var strResult:String=event.result as String;
+				this.cursorManager.removeBusyCursor();	
+				if(strResult)
+				{
+					var obj:Object=JSON.parse(strResult);
+					if(obj.msg=="ok")
+					{
+						Alert.show("Set successfully.","Information");
+						
+					}
+					else
+					{
+						Alert.show("Set failed","Information");
+					}
+					//关闭窗口
+					AppEvent.dispatch(AppEvent.WIDGET_CLOSE, ViewerContainer.getInstance().getWidgetId("水库出流过程"));
+				}
+			}
+			protected function btnSelect_clickHandler(event:MouseEvent):void
+			{
+				importXLS();
+			}
+			//上传
+			protected function btnupload_clickHandler(event:MouseEvent):void
+			{
+				var ac:ArrayCollection=this.prjListDG.dataProvider as ArrayCollection;
+				if(ac.length>0)
+				{
+					try 
+					{
+						var str:String="";
+						var strstime:String="";
+						var stretime:String="";
+						for(var i:int=0;i<ac.length;i++)
+						{
+							//json日期问题
+							strstime=ac[i].STIME.value;
+							stretime=ac[i].ETIME.value;
+							strstime=strstime.replace(" ","_");
+							stretime=stretime.replace(" ","_");
+
+							var newobj:Object={
+								ID:ac[i].ID,
+								STIME:strstime,
+								ETIME:stretime,
+								P:ac[i].P};
+							if(i<(ac.length-1))
+								str+=JSON.stringify(newobj)+",";
+							else str+=JSON.stringify(newobj);
+						}
+						var params:URLVariables=new URLVariables();
+						params.SID=configData.scmid;
+						params.RAIN ="{\"rain\":["+str+"]}";
+						if(params.SID==null || params.SID=="")
+						{
+							Alert.show("请先创建方案或者选择方案");
+							return;
+						}
+						var url:String=reqUrl+"WinderHandler.aspx?act=addrain";
+						//trace(params);
+						AppUtil.req(url,params,onSubmitaddrain,onFault);
+						this.cursorManager.setBusyCursor();	
+					}
+					catch(err:Error)
+					{
+						this.cursorManager.removeBusyCursor();
+					}	
+				}				
+			}
+			private function onSubmitaddrain(event:ResultEvent):void
+			{
+				var strResult:String=event.result as String;
+				this.cursorManager.removeBusyCursor();	
+				if(strResult)
+				{
+					var obj:Object=JSON.parse(strResult);
+					if(obj.msg=="ok")
+					{
+						Alert.show("导入成功.","提示");						
+					}
+					else if(obj.msg=="error")
+					{
+						Alert.show("失败","提示");
+					}					
+				}
+			}
+
+			protected function btncancel_clickHandler(event:MouseEvent):void
+			{
+				this.flowData.removeAll();			
+			}
+		]]>
+	</fx:Script>	
+	<viewer:WidgetTemplate id="wTemplate" minWidth="370" minHeight="110" open="wTemplate_openHandler(event)">  
+		<s:VGroup width="100%" height="100%"> 
+			<s:HGroup verticalAlign="middle" horizontalAlign="center" width="100%">
+				<s:Label text="添加文件(.xls)："/>
+				<s:TextInput id="filename" width="100%"/>
+				<s:Button label="浏览" id="btnSelect" click="btnSelect_clickHandler(event)"/>
+			</s:HGroup>
+			<s:DataGrid width="100%" height="100%" id="prjListDG" alpha="{styleAlpha}"
+						chromeColor="0xF21515"
+						alternatingRowColors="[ #FFFFFF,#EFEFF0]">
+				<s:columns>
+					<s:ArrayList>
+						<s:GridColumn dataField="ID" headerText="站点编号" sortable="true" ></s:GridColumn>
+						<s:GridColumn dataField="STIME" headerText="起始时间"></s:GridColumn>
+						<s:GridColumn dataField="ETIME" headerText="终止时间"></s:GridColumn>
+						<s:GridColumn dataField="P" headerText="雨量(mm)"></s:GridColumn>						
+					</s:ArrayList>
+				</s:columns>
+				<s:typicalItem>  
+					<fx:Object ID="站点编号" STIME="2014/9/13 14:37" ETIME="2014/9/13 14:37" P="关于水地点"></fx:Object>  
+				</s:typicalItem>			
+			</s:DataGrid>
+			<s:HGroup horizontalAlign="right">
+				<s:Button id="btnupload" label="导入" click="btnupload_clickHandler(event)"/>
+				<s:Button id="btncancel" label="取消" click="btncancel_clickHandler(event)"/>
+			</s:HGroup>
+		</s:VGroup>
+	</viewer:WidgetTemplate>
+</viewer:BaseWidget>

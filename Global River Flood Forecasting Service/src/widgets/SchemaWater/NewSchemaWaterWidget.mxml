@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx" 
+				   xmlns:viewer="com.esri.viewer.*" 
+				   initialize="basewidget_initializeHandler()"
+				   widgetConfigLoaded="basewidget_widgetConfigLoaded()">
+	
+	<fx:Script>
+		<![CDATA[
+			import com.esri.viewer.AppEvent;
+			import com.esri.viewer.AppUtil;
+			import com.esri.viewer.ViewerContainer;
+			//import com.esri.viewer.components.DateTime;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.formatters.DateFormatter;
+			import mx.rpc.events.ResultEvent;
+			
+			import spark.formatters.DateTimeFormatter;
+			private var reqUrl:String="";
+			private var title:String="New Scenario";
+			private var newPrjId:String="";
+			private var newPrjName:String="";
+			private var username:String="";
+			//初始化
+			private function basewidget_initializeHandler():void{
+				if (isPartOfPanel) 
+				{
+					this.percentWidth = this.percentHeight = 100;
+					wTemplate.percentWidth = wTemplate.percentHeight = 100;
+				}
+				else
+				{
+					wTemplate.width = 360;
+					wTemplate.height = 390;
+				}				
+			}
+			//读取配置文件
+			private function basewidget_widgetConfigLoaded():void{
+				if (configXML){
+					reqUrl = configXML.url||"" ;
+				}
+				//监听
+				//AppEvent.addListener(AppEvent.DATA_PUBLISH, sharedDataUpdated);
+				AppEvent.addListener(AppEvent.DATA_PUBLISH, sharedDataUpdatedPublish);
+				AppEvent.addListener(AppEvent.DATA_SENT,sharedDataUpdated);
+				AppEvent.dispatch(AppEvent.DATA_FETCH_ALL);
+			}
+			private function sharedDataUpdatedPublish(event:AppEvent):void{
+				var data:Object = event.data;
+				if(data.key=="newwaterprjid"){
+					var ac:ArrayCollection=data.collection;
+					txtWaterPrjId.text=ac.getItemAt(0) as String;
+					txtWaterPrjName.setFocus();
+					btnNewWaterPrj.enabled=true;
+				}	
+				//当前用户名称
+				if(data.key=="currusername"){
+					var act:ArrayCollection=data.collection;
+					if(act.getItemAt(0).toString() !="空")
+						username=act.getItemAt(0) as String;
+					//启动
+					//this.enable();
+				}
+			}
+			private function sharedDataUpdated(event:AppEvent):void{
+				var datanewwaterprjid:Object = event.data.find("newwaterprjid");
+				var datacurrusername:Object = event.data.find("currusername");
+				if(datanewwaterprjid !=null){
+					var ac:ArrayCollection=datanewwaterprjid as ArrayCollection;
+					if(ac.length>0){
+						txtWaterPrjId.text=ac.getItemAt(0) as String;
+						txtWaterPrjName.setFocus();
+						btnNewWaterPrj.enabled=true;
+					}
+				}
+				if(datacurrusername !=null){
+					var act:ArrayCollection=datacurrusername as ArrayCollection;
+					if(act.length>0){
+						if(act.getItemAt(0).toString() !="空")
+							username=act.getItemAt(0) as String;
+					}
+				}
+			}
+			//监听 结果执行
+			/*
+			private function sharedDataUpdated(event:AppEvent):void{
+				var data:Object = event.data;
+				if(data.key=="newwaterprjid"){
+					var ac:ArrayCollection=data.collection;
+					txtWaterPrjId.text=ac.getItemAt(0) as String;
+					txtWaterPrjName.setFocus();
+					btnNewWaterPrj.enabled=true;
+				}	
+				//当前用户名称
+				if(data.key=="currusername"){
+					var act:ArrayCollection=data.collection;
+					if(act.getItemAt(0).toString() !="空")
+						username=act.getItemAt(0) as String;
+					//启动
+					//this.enable();
+				}
+			}
+			*/
+			
+			//创建
+			protected function newWaterPrj_clickHandler(event:MouseEvent):void
+			{
+				if(txtWaterPrjName.text==""){
+					txtWaterPrjName.setFocus();	
+					return ;
+				}
+				if(txtWaterPrjId.text==""){
+					Alert.show("No Scenario ID",title);
+					return ;
+				}
+					
+				var params:URLVariables = new URLVariables();
+				params.sid=txtWaterPrjId.text;
+				params.name=txtWaterPrjName.text;
+				
+				newPrjId=txtWaterPrjId.text;
+				newPrjName=txtWaterPrjName.text;
+				
+				params.slnclass="w";
+				if(txtWaterPrjDesc.text!=""){
+					params.remark=txtWaterPrjDesc.text;					
+				}
+
+				//用户名
+				params.username=username;
+				try{
+					//上传新建方案参数
+					var url:String=reqUrl+"WinderHandler.aspx?act=newscm";
+
+					AppUtil.req(url,params,onNewWaterPrjResult,onFault);
+					this.cursorManager.setBusyCursor();
+				}
+				catch(err:Error){
+					this.cursorManager.removeBusyCursor();
+					showError(String(err),"Information");
+				}
+			}
+			
+			//上传新建方案参数  返回结果
+			private function onNewWaterPrjResult(event:ResultEvent):void
+			{
+				var strResult:String=event.result as String;
+				this.cursorManager.removeBusyCursor();	
+				if(strResult)
+				{
+					this.cursorManager.removeBusyCursor();
+					var obj:Object=JSON.parse(strResult);
+					if(obj.msg=="ok"){
+						configData.scmid=newPrjId;
+						var ac:ArrayCollection=new ArrayCollection();
+						ac.addItem(newPrjName);
+						addSharedData("currprjname",ac);
+						Alert.show("Success！",title);
+						closeMe();
+					}
+					else{
+						Alert.show("Failed！",title);
+					}
+				}
+			}
+			//关闭
+			private function closeMe():void{
+				try{
+					AppEvent.dispatch(AppEvent.WIDGET_CLOSE, ViewerContainer.getInstance().getWidgetId(title));
+				}
+				catch (error:Error){
+					showError(error.message);
+				}				
+			}
+				
+			
+			
+			private function onFault(info:Object, token:Object = null) : void
+			{                    
+				this.cursorManager.removeBusyCursor(); 
+				showError(info.toString());
+			}
+			
+			private function widgetClosedHandler(event:Event):void{
+				
+			}
+			//打开窗口
+			private function widgetOpenedHandler(event:Event):void{
+				txtWaterPrjName.text="";
+				txtWaterPrjDesc.text="";
+				if(txtWaterPrjId.text=="")btnNewWaterPrj.enabled=false;
+				else {
+					if(txtWaterPrjName.text=="")txtWaterPrjName.setFocus();
+					btnNewWaterPrj.enabled=true;
+				}
+			}
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<s:HTTPService url="WinderHandler.aspx?" showBusyCursor="true"/>
+	</fx:Declarations>
+	<viewer:WidgetTemplate id="wTemplate" 
+						   closed="widgetClosedHandler(event)"
+						   open="widgetOpenedHandler(event)">
+		<!--form表单-->
+		<s:VGroup width="100%" height="100%">
+			<s:Form width="100%" height="100%" >
+				<s:FormItem label="Scenario No">
+					<s:TextInput id="txtWaterPrjId" enabled="false" width="100%"/>
+				</s:FormItem>
+				<s:FormItem label="Scenario Name">
+					<s:TextInput id="txtWaterPrjName" width="100%"/>
+				</s:FormItem>
+				<s:FormItem label="Scenario Remark" width="100%">
+					<s:TextArea id="txtWaterPrjDesc" width="100%" />
+				</s:FormItem>
+				<s:FormItem>
+					<s:Button id="btnNewWaterPrj" enabled="false" label="Create" click="newWaterPrj_clickHandler(event)"/>
+				</s:FormItem>
+			</s:Form>		
+		</s:VGroup>
+	
+	</viewer:WidgetTemplate>
+</viewer:BaseWidget>

@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx"
+				   xmlns:esri="http://www.esri.com/2008/ags"
+				   xmlns:viewer="com.esri.viewer.*"
+				   xmlns:components="com.esri.viewer.components.*"
+				   xmlns:RDateTime="com.esri.viewer.components.RDateTime.*"
+				   initialize="basewidget_initializeHandler()"
+				   widgetConfigLoaded="basewidget_widgetConfigLoaded()">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<s:DateTimeFormatter id="dateTimeFormatter" dateTimePattern="yyyy-MM-dd HH:mm:ss"/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.viewer.AppEvent;
+			import com.esri.viewer.AppUtil;
+			import com.esri.viewer.ViewerContainer;
+			
+			import mx.collections.ArrayCollection;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.soap.WebService;
+			
+			import spark.collections.Sort;
+			import spark.collections.SortField;
+			
+			private var theResults:ArrayCollection=new ArrayCollection();
+			[Bindable]
+			private var styleAlpha:Number;
+			private var reqUrl:String="";
+			private var username:String="";
+
+			private function basewidget_initializeHandler():void
+			{
+				wTemplate.width = 700;
+				wTemplate.height = 400;
+			}
+			//添加监听
+			protected function basewidget_widgetConfigLoaded():void
+			{	
+				if (configXML)
+				{
+					reqUrl = configXML.url;
+				}		
+				//清空
+				//clear();
+				styleAlpha=configData.styleAlpha;
+				var timer:Timer=new Timer(100,1);
+				timer.addEventListener(TimerEvent.TIMER_COMPLETE,onTimerComplete);
+				timer.start();
+			}
+			private function onTimerComplete(event:TimerEvent):void{
+				AppEvent.addListener(AppEvent.DATA_PUBLISH,sharedDataUpdatedPublish);
+				AppEvent.addListener(AppEvent.DATA_SENT,sharedDataUpdated);
+				AppEvent.dispatch(AppEvent.DATA_FETCH_ALL);
+			}
+			private function sharedDataUpdatedPublish(event:AppEvent):void{
+				var data:Object = event.data;
+				//当前用户名称
+				if(data.key=="currusername"){
+					var act:ArrayCollection=data.collection;
+					common(act);
+				}
+			}
+			private function common(act:ArrayCollection):void
+			{
+				if(act.getItemAt(0) !="空")
+				{
+					username=act.getItemAt(0) as String;
+					//是管理员用户
+					if(username=="admin")
+					{
+						var slabel:Label=new Label();
+						slabel.text="User Name:";
+						var sTextInput:TextInput=new TextInput();
+						sTextInput.id="Tusername";
+						sTextInput.percentWidth=100;
+						this.hg.addElementAt(slabel,0);
+						this.hg.addElementAt(sTextInput,1);
+						(hg.getElementAt(1) as TextInput).setFocus();
+					}
+				}
+				else
+				{
+					username="";
+				}
+			}
+			private function sharedDataUpdated(event:AppEvent):void{
+				//用户名称
+				var dataname:Object = event.data.find("currusername");
+				if(dataname !=null){
+					var act:ArrayCollection=dataname as ArrayCollection;
+					common(act);
+				}
+			}
+			//确定
+			protected function btnOK_clickHandler(event:MouseEvent):void
+			{				
+				try{
+					var url:String=reqUrl+"WinderHandler.aspx?act=userfee";
+					var params:URLVariables = new URLVariables();
+					if(this.username=="admin")
+						params.username=(this.hg.getElementAt(1) as TextInput).text; 
+					else
+						params.username=this.username;
+					params.sid=sid.text;
+					params.sDT=sDT.getDateString();
+					params.eDT=eDT.getDateString();
+					AppUtil.req(url,params,onGetUserFeeResult,onFault);
+					this.cursorManager.setBusyCursor();	
+				}
+				catch(err:Error){
+					this.cursorManager.removeBusyCursor();
+					showError(String(err));
+				}
+			}
+			//用户费用列表	
+			private function onGetUserFeeResult(event:ResultEvent):void{
+				this.cursorManager.removeBusyCursor();	
+				var strResult:String=event.result as String;
+				if(prjListDG.dataProvider){
+					prjListDG.dataProvider.removeAll();
+				}
+				theResults.removeAll();
+				if(strResult){
+					//解析Json字符串
+					var obj:Object=JSON.parse(strResult);
+					if(obj!=null){
+						var rows:Array=obj.rows as Array;
+						if(rows!=null && rows.length>0){
+							for(var i:int=0;i<rows.length;i++){
+								var sln:Object=rows[i];
+								theResults.addItem(sln);
+							}
+							//定义排序方式 降序
+							var sort:Sort=new Sort();
+							sort.fields=[new SortField("SID",true,false)];
+							theResults.sort=sort;
+							theResults.refresh();
+							prjListDG.dataProvider=theResults;	
+						}
+					}
+				}
+				else{
+					this.cursorManager.removeBusyCursor();	
+				}
+			}
+			//错误提示
+			private function onFault(info:Object, token:Object = null) : void{                    
+				this.cursorManager.removeBusyCursor(); 
+			}
+			//清空
+			protected function btnClear_clickHandler(event:MouseEvent):void
+			{
+				clear();
+			}
+			protected function clear():void
+			{
+				this.sid.text="";
+				this.sDT.text="";
+				this.eDT.text="";
+			}
+			//打开窗口
+			private function widgetOpenedHandler(event:Event):void{
+				var d:Date=new Date();				
+				//dt.setDate(dt.date-30);				
+				//sDT.data=dateTimeFormatter.format(dt);		
+				sDT.data=new Date(d.fullYear,d.month,Number(d.day-30));
+				if(this.username !="admin" && this.username !="")
+				{
+					if((this.hg.getElementAt(0) as Label).text =="User Name:")
+					{
+						hg.removeElementAt(0);
+						hg.removeElementAt(0);						
+					}
+				}
+				this.prjListDG.dataProvider=null;
+			}
+			protected function btnfreedesc_clickHandler(event:MouseEvent):void
+			{
+				if(this.username !="admin")
+					AppEvent.dispatch(AppEvent.WIDGET_RUN, ViewerContainer.getInstance().getWidgetId("费用单价"));
+				else
+					AppEvent.dispatch(AppEvent.WIDGET_RUN, ViewerContainer.getInstance().getWidgetId("费用单价设置"));
+			}
+		]]>
+	</fx:Script>
+	<viewer:WidgetTemplate id="wTemplate" open="widgetOpenedHandler(event)">
+		<s:VGroup width="100%" height="100%" paddingTop="0" paddingLeft="0">
+			<s:HGroup id="hg" width="100%" verticalAlign="middle" horizontalAlign="center">
+				<s:Label text="Schema No:"/>
+				<s:TextInput id="sid" width="100%"/>
+				<s:Label text="STime: From"/>
+				<!--<components:MyDateField id="sDT" width="100%"/>-->
+				<RDateTime:CustomizeDateField id="sDT" width="100%"/>		
+				<s:Label text="To"/>
+				<!--<components:MyDateField id="eDT" width="100%"/>-->
+				<RDateTime:CustomizeDateField id="eDT" width="100%"/>		
+				<s:Button id="btnOK" label="Query" click="btnOK_clickHandler(event)"/>
+            <!--<s:Button id="btnClear" label="清空" click="btnClear_clickHandler(event)"/>-->		
+			</s:HGroup>
+			
+			<s:DataGrid width="100%" height="100%" id="prjListDG" alpha="{styleAlpha}"
+						chromeColor="0xF21515"
+						alternatingRowColors="[ #FFFFFF,#EFEFF0]">
+				<s:columns>
+					<s:ArrayList>
+						<s:GridColumn dataField="USERNAME" headerText="User Name" sortable="true" ></s:GridColumn>
+						<s:GridColumn dataField="SID" headerText="Schema No" sortable="true" ></s:GridColumn>
+						<s:GridColumn dataField="PRICE_TOTAL" headerText="Total Cost(yuan)" sortable="true"></s:GridColumn>
+						<s:GridColumn dataField="PRICE_C" headerText="Compute Cost(yuan)"></s:GridColumn>
+						<s:GridColumn dataField="PRICE_S" headerText="Storage Cost(yuan)"></s:GridColumn>						
+						<s:GridColumn dataField="SIMSTIME" headerText="STime"></s:GridColumn>
+						<s:GridColumn dataField="SIMETIME" headerText="ETime"></s:GridColumn>
+						<s:GridColumn dataField="MINUTEOFFSET" headerText="Calculate Time(minute)"></s:GridColumn>
+						<s:GridColumn dataField="CORES" headerText="Cores"></s:GridColumn>
+						<s:GridColumn dataField="RIVERCOUNT" headerText="Rivers"></s:GridColumn>
+						<s:GridColumn dataField="STORAGES" headerText="Storage No"></s:GridColumn>
+						<s:GridColumn dataField="UPRICEDISCOUNT_C" headerText="Calculate Discount"></s:GridColumn>
+						<s:GridColumn dataField="UPRICEDISCOUNT_S" headerText="Storage Discount" ></s:GridColumn>						
+						<s:GridColumn dataField="LEVELNAME_USER" headerText="User Level"></s:GridColumn>
+						<s:GridColumn dataField="LEVELNAME_SID" headerText="Priority Level"></s:GridColumn>
+					</s:ArrayList>
+				</s:columns>
+				<s:typicalItem>  
+					<fx:Object USERNAME="用户名" SID="20131214HP000" PRICE_TOTAL="14931.78(元)" PRICE_C="计算费用(元)" PRICE_S="计算费用(元)" SIMSTIME="2015/1/2 18:00:37"
+							   SIMETIME="2015/1/2 18:17:35" MINUTEOFFSET="计算时长(分钟)" CORES="核心数" RIVERCOUNT="关注河段数" STORAGES="存储记录数" UPRICEDISCOUNT_C="计算折扣率"
+							   UPRICEDISCOUNT_S="计算折扣率" LEVELNAME_USER="普通计算用户" LEVELNAME_SID="普通计算"></fx:Object>  
+				</s:typicalItem>			
+			</s:DataGrid>
+			<s:HGroup width="100%" verticalAlign="middle" horizontalAlign="right">
+				<s:Button id="btnfreedesc" label="Unit Price" click="btnfreedesc_clickHandler(event)"/>
+		    </s:HGroup>
+		</s:VGroup>
+	</viewer:WidgetTemplate>
+</viewer:BaseWidget>

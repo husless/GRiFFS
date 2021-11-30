@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration> 
+<!-- 
+ <url>http://localhost/test/</url>
+  -->
+ <!--调用之前发布好的服务
+  <url>http://101.6.54.216/test/</url>
+  -->
+  <!--调用Ren发布服务-->
+  <!--<url>http://101.6.54.216/YUNWEBV1.0/</url>-->
+  <field org_en="ecmwf" org_cn="欧洲中期天气预报中心(ecmwf)"/>
+  <field org_en="jma" org_cn="日本气象厅(jma)"/>
+  <field org_en="cmc" org_cn="加拿大气象中心(cmc)"/>
+  <field org_en="cptec" org_cn="巴西国家天气预报和气候研究中心(cptec)"/>-->
+  <field org_en="kma" org_cn="韩国气象厅(kma)"/>  
+  <field org_en="ncep" org_cn="美国国家环境预报中心(ncep)"/>  
+  <field org_en="cma" org_cn="中国气象中心(cma)"/>  
+  <field org_en="ukmo" org_cn="英国气象局(ukmo)"/>  
+</configuration>

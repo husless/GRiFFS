@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration> 
+<!-- 
+ <url>http://localhost/test/</url>
+  -->
+ <!--调用之前发布好的服务
+  <url>http://101.6.54.216/test/</url>
+  -->
+  <!--调用Ren发布服务
+  <url>http://101.6.54.216:6080/arcgis/rest/services/NetCDF/M2014041700ecmf/MapServer</url>
+  -->
+  <!--调用216服务 
+  <url>http://101.6.54.216:6080/arcgis/rest/services/RenGIS/Mxd20120719/MapServer</url>
+  -->
+  <!--NetCDF文件夹下的服务列表
+  <MapServicesURL>http://101.6.54.216:6080/arcgis/rest/services/NetCDF?f=json</MapServicesURL>
+    -->
+</configuration>

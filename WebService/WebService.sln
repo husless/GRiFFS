@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WS", "WS\WS.csproj", "{C885EBE1-30CD-44D3-B885-5838F04F78C9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JZJW.Winder.BLL", "JZJW.Winder.BLL\JZJW.Winder.BLL.csproj", "{56328488-E2DE-418C-BA97-08ED3AE7517F}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x86 = Debug|x86
+		Release|Any CPU = Release|Any CPU
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C885EBE1-30CD-44D3-B885-5838F04F78C9}.Debug|Any CPU.ActiveCfg = Debug|x86
+		{C885EBE1-30CD-44D3-B885-5838F04F78C9}.Debug|Any CPU.Build.0 = Debug|x86
+		{C885EBE1-30CD-44D3-B885-5838F04F78C9}.Debug|x86.ActiveCfg = Debug|x86
+		{C885EBE1-30CD-44D3-B885-5838F04F78C9}.Debug|x86.Build.0 = Debug|x86
+		{C885EBE1-30CD-44D3-B885-5838F04F78C9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C885EBE1-30CD-44D3-B885-5838F04F78C9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C885EBE1-30CD-44D3-B885-5838F04F78C9}.Release|x86.ActiveCfg = Release|x86
+		{C885EBE1-30CD-44D3-B885-5838F04F78C9}.Release|x86.Build.0 = Release|x86
+		{56328488-E2DE-418C-BA97-08ED3AE7517F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{56328488-E2DE-418C-BA97-08ED3AE7517F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{56328488-E2DE-418C-BA97-08ED3AE7517F}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{56328488-E2DE-418C-BA97-08ED3AE7517F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{56328488-E2DE-418C-BA97-08ED3AE7517F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{56328488-E2DE-418C-BA97-08ED3AE7517F}.Release|x86.ActiveCfg = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

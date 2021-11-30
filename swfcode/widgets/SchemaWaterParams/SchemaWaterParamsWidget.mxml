@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx" 
+				   xmlns:viewer="jzjw.winder.viewer.*" 
+				   initialize="basewidget_initializeHandler()"
+				   widgetConfigLoaded="basewidget_widgetConfigLoaded()" xmlns:ns="http://www.esri.com/2008/ags" xmlns:components="jzjw.winder.viewer.components.*">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+		<s:DateTimeFormatter id="dateTimeFormatter" dateTimePattern="yyyy-MM-dd HH:mm:ss"/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import jzjw.winder.viewer.AppEvent;
+			import jzjw.winder.viewer.AppUtil;
+			import jzjw.winder.viewer.ViewerContainer;
+			
+			import mx.collections.ArrayCollection;
+			import mx.formatters.DateFormatter;
+			import mx.rpc.events.ResultEvent;
+			
+			private var reqUrl:String="";
+			private function basewidget_initializeHandler():void
+			{
+				if (isPartOfPanel) // if widget is part of "left", "right" or "bottom" panel
+				{
+					this.percentWidth = this.percentHeight = 100;
+					wTemplate.percentWidth = wTemplate.percentHeight = 100;
+				}
+				else{
+					wTemplate.width = 380;
+					wTemplate.height =330;
+				}
+			}
+			
+			protected function basewidget_widgetConfigLoaded():void{
+				if (configXML){
+					reqUrl = configXML.url;
+				}
+				
+				var timer:Timer=new Timer(1000,1);
+				timer.addEventListener(TimerEvent.TIMER_COMPLETE,onTimerComplete);
+				timer.start();	
+			}
+			private function onTimerComplete(event:TimerEvent):void{
+				getModelList();
+			}
+			
+			
+			private function widgetClosedHandler(event:Event):void{
+				
+			}
+			
+			private function widgetOpenedHandler(event:Event):void{
+				var dt:Date=new Date();
+				dt.setDate(dt.date+3);
+				
+				eDT.date_input.text=dateTimeFormatter.format(dt);
+					//dt.fullYear+"-"+(dt.month+1)+"-"+(dt.date+3)+" "+dt.hours+":"+dt.minutes+":"+dt.seconds;
+				
+				getModelList();
+				cmbRainfall.textInput.editable=false;
+				cmbRunoff.textInput.editable=false;
+				cmbRiver.textInput.editable=false;
+			}
+			
+			private function getModelList():void{
+				try{
+					var url:String=reqUrl+"WinderHandler.aspx?act=modellist";
+					var params:URLVariables = new URLVariables();
+					params.item="rainfall";
+					AppUtil.req(url,params,onGetModelListResult,onFault);
+					this.cursorManager.setBusyCursor();	
+				}
+				catch(err:Error){
+					this.cursorManager.removeBusyCursor();
+					showError(String(err));
+				}
+			}
+			
+			private function onGetModelListResult(event:ResultEvent):void{
+				var strResult:String=event.result as String;
+				this.cursorManager.removeBusyCursor();	
+				if(strResult){
+					var obj:Object=JSON.parse(strResult);
+					if(obj!=null){
+						var rows:Array=obj.rows as Array;
+						if(rows!=null && rows.length>0){
+							var rainfallList:ArrayCollection=new ArrayCollection();
+							var runoffList:ArrayCollection=new ArrayCollection();
+							var riverList:ArrayCollection=new ArrayCollection();
+							
+							for(var i:int=0;i<rows.length;i++){
+								var model:Object=rows[i];
+								var item:String=model.ITEM as String;
+								var value:String=model.VALUE as String;
+								if(item=="rainfall"){
+									rainfallList.addItem({label:value,data:value});
+								}
+								if(item=="runoff"){
+									runoffList.addItem({label:value,data:value});
+								}
+								if(item=="river"){
+									riverList.addItem({label:value,data:value});
+								}								
+							}
+							cmbRainfall.dataProvider=rainfallList;
+							cmbRainfall.selectedIndex=0;
+							cmbRunoff.dataProvider=runoffList;
+							cmbRunoff.selectedIndex=0;
+							cmbRiver.dataProvider=riverList;	
+							cmbRiver.selectedIndex=0;
+						}
+					}
+				}
+				else{
+					this.cursorManager.removeBusyCursor();	
+				}
+				
+				
+			}
+			
+			private function onFault(info:Object, token:Object = null) : void{                    
+				this.cursorManager.removeBusyCursor(); 
+			}
+
+			protected function btnWaterParams_clickHandler(event:MouseEvent):void
+			{
+				if(configData.scmid==null||configData.scmid==""){
+					alert("没指定参数设置的方案");
+					return;
+				}
+				
+				var stime:String=sDT.date_input.text;//.toString();
+				var etime:String=eDT.date_input.text;// toString();
+				
+				var dateFormatter:DateFormatter = new DateFormatter(); 
+				dateFormatter.formatString = "YYYY-MM-DD JJ:NN:SS"; 
+				var myPattern1:RegExp=/-|:| /g; 
+				
+				var s1:String=dateFormatter.format(stime);
+				s1=s1.replace(myPattern1,'');
+				var s2:String=dateFormatter.format(etime);
+				s2=s2.replace(myPattern1,'');
+				if(Number(s1)>=Number(s2)){
+					alert("模拟时段输入有误，开始时间应早于结束时间");
+					return;
+				}		
+				
+				
+				var rainfall:String=cmbRainfall.textInput.text;
+				var runoff:String=cmbRunoff.textInput.text;
+				var river:String=cmbRiver.textInput.text;
+				try {
+					var params:URLVariables=new URLVariables();
+					params.sid=configData.scmid;
+					params.stime=stime;
+					params.etime=etime;
+					params.rainfall=rainfall;
+					params.runoff=runoff;
+					params.river=river;
+					var url:String=reqUrl+"WinderHandler.aspx?act=scmparams";
+					AppUtil.req(url,params,onSubmitSchemaParams,onFault);	
+					this.cursorManager.setBusyCursor();	
+				}
+				catch(err:Error){
+					this.cursorManager.removeBusyCursor();
+					showError(String(err),"参数设置");
+				}				
+			}
+			
+			private function onSubmitSchemaParams(event:ResultEvent):void{
+				var strResult:String=event.result as String;
+				this.cursorManager.removeBusyCursor();	
+				if(strResult){
+					var obj:Object=JSON.parse(strResult);
+					if(obj.msg=="ok"){
+						alert("方案参数设置成功！");
+						closeMe();
+					}
+				}
+				else{
+					this.cursorManager.removeBusyCursor();
+				}
+			}
+			
+			private function closeMe():void{
+				try{
+					AppEvent.dispatch(AppEvent.WIDGET_CLOSE, ViewerContainer.getInstance().getWidgetId("水文预报参数设置"));
+				}
+				catch (error:Error){
+					showError(error.message);
+				}				
+			}
+			
+		]]>
+	</fx:Script>
+	
+	
+	<viewer:WidgetTemplate id="wTemplate" 
+						   closed="widgetClosedHandler(event)"
+						   open="widgetOpenedHandler(event)">
+		<s:Form width="100%" height="100%" fontSize="13">
+			<s:FormItem label="模拟时段">
+				<s:HGroup>
+					<s:Label text="开始"/><components:MyDateField id="sDT"/>
+				</s:HGroup>
+				<s:HGroup>
+					<s:Label text="结束"/><components:MyDateField id="eDT"/>
+				</s:HGroup>
+			</s:FormItem>
+			<s:FormItem label="模型选择">
+				<mx:VBox>
+					<mx:HBox><s:Label text="降雨数据"/><s:ComboBox id="cmbRainfall" useHandCursor="true" selectedIndex="0" /></mx:HBox>
+					<mx:HBox><s:Label text="产流模型"/><s:ComboBox id="cmbRunoff" selectedIndex="0" /></mx:HBox>
+					<mx:HBox><s:Label text="河道模型"/><s:ComboBox id="cmbRiver" selectedIndex="0" /></mx:HBox>
+				</mx:VBox>
+			</s:FormItem>
+			<s:FormItem>
+				<s:Button label="确定" click="btnWaterParams_clickHandler(event)"/>
+			</s:FormItem>
+		</s:Form>
+	</viewer:WidgetTemplate>
+	
+</viewer:BaseWidget>

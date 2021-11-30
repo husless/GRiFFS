@@ -1,0 +1,7 @@
+<?xml version="1.0" ?>
+<configuration>
+    <labels>
+    <layerlistlabel>专题图层</layerlistlabel>
+    </labels>
+    <layerlist visible="true"></layerlist>
+</configuration>

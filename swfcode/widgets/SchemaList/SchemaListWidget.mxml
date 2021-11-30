@@ -1,0 +1,389 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx" 
+				   xmlns:esri="http://www.esri.com/2008/ags"
+				   xmlns:viewer="jzjw.winder.viewer.*"
+				   initialize="basewidget_initializeHandler()"
+				   widgetConfigLoaded="basewidget_widgetConfigLoaded()">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+		<esri:SimpleLineSymbol id="slsRed"  width="8" alpha="0.5" color="0xF70D2E" style="solid"/>
+		<esri:SimpleLineSymbol id="slsYellow"  width="5" alpha="0.5" color="0xF9F876" style="solid"/>
+		<esri:IdentifyTask id="identifyTask"   concurrency="last" showBusyCursor="true" 
+						   url="http://166.111.47.28:6080/arcgis/rest/services/gdn/Hydro30/MapServer"/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.FeatureSet;
+			import com.esri.ags.Graphic;
+			import com.esri.ags.geometry.Extent;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.geometry.Polyline;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.ags.tasks.QueryTask;
+			import com.esri.ags.tasks.supportClasses.IdentifyParameters;
+			import com.esri.ags.tasks.supportClasses.IdentifyResult;
+			import com.esri.ags.tasks.supportClasses.Query;
+			import jzjw.winder.viewer.AppUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.rpc.AsyncResponder;
+			import mx.rpc.events.ResultEvent;
+			
+			import spark.events.GridEvent;
+			
+			private var theResults:ArrayCollection=new ArrayCollection();
+			[Bindable]
+			private var styleAlpha:Number;
+			private var url:String="http://166.111.47.28:6080/arcgis/rest/services/gdn/Hydro30/MapServer";
+			
+			private var upstreamLayer:GraphicsLayer=new GraphicsLayer();
+			private function basewidget_initializeHandler():void{
+				if (isPartOfPanel) // if widget is part of "left", "right" or "bottom" panel
+				{
+					this.percentWidth = this.percentHeight = 100;
+					wTemplate.percentWidth = wTemplate.percentHeight = 100;
+				}
+				else
+				{
+					wTemplate.width = 260;
+					wTemplate.height = 460;
+				}				
+			}
+			
+			private var reqUrl:String="";
+			private function basewidget_widgetConfigLoaded():void{
+				if (configXML)
+				{
+					reqUrl = configXML.url;
+				}
+				var timer:Timer=new Timer(1000,1);
+				timer.addEventListener(TimerEvent.TIMER_COMPLETE,onTimerComplete);
+				timer.start();				
+			}
+			
+			private function onTimerComplete(event:TimerEvent):void{
+				getPrjList();
+			}
+			
+			private function widgetClosedHandler(event:Event):void{
+				upstreamLayer.clear();
+				map.defaultGraphicsLayer.clear();
+				map.removeLayer(upstreamLayer);
+			}
+			
+			private function widgetOpenedHandler(event:Event):void
+			{
+				styleAlpha=configData.styleAlpha;
+				getPrjList();
+				map.addLayer(upstreamLayer);
+			}
+			
+			private function getPrjList():void{
+				try{
+					var url:String=reqUrl+"WinderHandler.aspx?act=scmlist";
+					var params:URLVariables = new URLVariables();
+					params.slnclass="";
+					AppUtil.req(url,params,onGetWaterPrjNewIdResult,onFault);
+					this.cursorManager.setBusyCursor();	
+				}
+				catch(err:Error){
+					this.cursorManager.removeBusyCursor();
+					showError(String(err),"项目列表");
+				}
+			}
+						
+			private function onGetWaterPrjNewIdResult(event:ResultEvent):void{
+				this.cursorManager.removeBusyCursor();	
+				var strResult:String=event.result as String;
+				if(prjListDG.dataProvider){
+					prjListDG.dataProvider.removeAll();
+				}
+				
+				if(strResult){
+					var obj:Object=JSON.parse(strResult);
+					if(obj!=null){
+						var rows:Array=obj.rows as Array;
+						if(rows!=null && rows.length>0){
+							for(var i:int=0;i<rows.length;i++){
+								var sln:Object=rows[i];
+								theResults.addItem(sln);
+							}
+							
+							prjListDG.dataProvider=theResults;	
+						}
+					}
+				}
+				else{
+					this.cursorManager.removeBusyCursor();	
+				}
+			}
+			
+			private function onFault(info:Object, token:Object = null) : void{                    
+				this.cursorManager.removeBusyCursor(); 
+				//showError(info.toString());
+			}
+			
+			private function onGridDoubleClick( event:GridEvent ):void {
+				if(prjListDG.selectedIndex>=0){
+					var obj:Object =theResults.getItemAt(prjListDG.selectedIndex);					
+					var extStr:String=obj.EXT;
+					if(extStr!=""){
+						var extArray:Array=extStr.split(";");
+						var ext:Extent=new Extent(parseFloat(extArray[1]),parseFloat(extArray[3]),parseFloat(extArray[0]),parseFloat(extArray[2]),map.spatialReference);
+						map.extent=ext;
+						//map.zoomTo(ext);
+					}					
+				}				
+			}
+			
+			
+//			import mx.controls.Alert;
+			private static var currSID:String="";
+			private function onGridClick( event:GridEvent ):void {
+				var prjName:String="";
+				if(prjListDG.selectedIndex>=0){
+					var obj:Object =theResults.getItemAt(prjListDG.selectedIndex);					
+					prjName=obj.NAME;
+					configData.scmid=obj.SID;
+					var extStr:String=obj.EXT;
+					showSchemaRegionShapeOnMap(obj.SID);
+					currSID=obj.SID;
+					map.defaultGraphicsLayer.clear();
+					if(extStr!=""){
+						var extArray:Array=extStr.split(";");
+						var ext:Extent=new Extent(parseFloat(extArray[1]),parseFloat(extArray[3]),parseFloat(extArray[0]),parseFloat(extArray[2]),map.spatialReference);
+//						map.extent=ext;
+						map.zoomTo(ext);
+					}					
+				
+					var ac:ArrayCollection=new ArrayCollection();
+					ac.addItem(prjName);
+					this.addSharedData("currprjname",ac);
+				}
+			}
+			
+			private function showSchemaRegionUpstream():void{
+				try{
+					var url:String=reqUrl+"WinderHandler.aspx?act=scmupstream";
+					var params:URLVariables = new URLVariables();
+					params.sid=currSID;
+					AppUtil.req(url,params,onGetSchemaRegionUpstreamResult,onFault);
+					this.cursorManager.setBusyCursor();	
+				}
+				catch(err:Error){
+					this.cursorManager.removeBusyCursor();
+					showError(String(err),"项目列表");
+				}
+				
+			}
+			private var riverArray:Array=[];
+			
+		    private function onGetSchemaRegionUpstreamResult(event:ResultEvent):void{
+				this.cursorManager.removeBusyCursor();	
+				var strResult:String=event.result as String;
+				if(strResult){
+					riverArray=[];
+					var obj:Object=JSON.parse(strResult);
+					if(obj!=null){
+						var rows:Array=obj.rows as Array;
+						if(rows!=null && rows.length>0){
+							for(var i:int=0;i<rows.length;i++){
+								var riverSeg:Object=rows[i];
+								riverArray.push(riverSeg);
+							}
+							doGetVisibleRiverSeg();
+						}
+					}
+					
+				}
+				
+			}
+			
+			private function doGetVisibleRiverSeg():void{
+				var identifyParams:IdentifyParameters = new IdentifyParameters();
+				identifyParams.layerOption = IdentifyParameters.LAYER_OPTION_VISIBLE;
+				identifyParams.returnGeometry = true;
+				identifyParams.tolerance = 3;
+				identifyParams.width = map.width;
+				identifyParams.height = map.height;
+				identifyParams.geometry = map.extent;
+				identifyParams.mapExtent = map.extent;
+				identifyParams.spatialReference = map.spatialReference;
+				identifyTask.execute(identifyParams, new AsyncResponder(myResultFunction, myFaultFunction));
+			}
+			
+			private function myFaultFunction(error:Object, token:Object = null):void{
+				this.showError(String(error));
+			}
+			
+			private function myResultFunction(results:Array, token:Object = null):void {  
+				this.cursorManager.removeBusyCursor();	
+				upstreamLayer.clear();
+				if (results && results.length > 0){
+					for (var i:int = 0; i < results.length; i++) { 
+						var result:IdentifyResult = results[i];
+						if(result.layerName!=""){
+							if(riverArray.length>0){
+								for each(var river:Object in riverArray){
+									if(result.feature &&result.feature.attributes){
+										var rgnid:int=Number(result.feature.attributes.REGIONID);
+										var bsval:int=Number(result.feature.attributes.BINSTRVAL);
+										var bslen:int=Number(result.feature.attributes.BINSTRLEN);
+										if(Number(river.REGIONID)==rgnid && Number(river.BINSTRVAL)==bsval&&Number(river.BINSTRLEN)==bslen){
+											var gra:Graphic=new Graphic(result.feature.geometry,this.slsYellow);
+											//map.defaultGraphicsLayer.add(gra);
+											upstreamLayer.add(gra);
+										}										
+									}
+								}
+							}
+							
+						}
+					}
+				}
+			}		
+			
+		    private function onGetSchemaRegionUpstreamResult1(event:ResultEvent):void{
+					this.cursorManager.removeBusyCursor();	
+					var strResult:String=event.result as String;
+					if(strResult){
+//						upstreamLayer.clear();
+//						upstreamLayer.symbol=this.slsYellow;
+//						map.addLayer(upstreamLayer);
+						
+						var obj:Object=JSON.parse(strResult);
+						if(obj!=null){
+							var rows:Array=obj.rows as Array;
+							if(rows!=null && rows.length>0){
+								for(var i:int=0;i<rows.length;i++){
+									var riverSeg:Object=rows[i];
+									var lyrid:int=riverSeg.LYRID;
+									var rgnid:int=riverSeg.REGIONID;
+									var bsval:int=riverSeg.BINSTRVAL;
+									var bslen:int=riverSeg.BINSTRLEN;
+									var query:Query=new Query();
+									query.returnGeometry=true;
+									query.where=" regionid="+rgnid+" and binstrval="+bsval+" and binstrlen="+bslen;
+									query.returnZ=false;
+									query.returnM=false;
+									var taskUrl:String=url+"/"+lyrid;									
+									var queryTask:QueryTask=new QueryTask(taskUrl);
+									queryTask.execute(query, new AsyncResponder(onResult, onFault));
+								}
+							}
+						}
+					}
+			}
+			
+			private function onResult(featureSet:FeatureSet, token:Object = null):void
+			{
+				if (featureSet.features.length == 1)
+				{
+					var gra:Graphic=new Graphic(featureSet.features[0].geometry);
+					gra.symbol=this.slsYellow;
+					map.defaultGraphicsLayer.add(gra);
+				}
+				
+			}
+			
+			private function showSchemaRegionShapeOnMap(sid:String):void{
+				try{
+					var url:String=reqUrl+"WinderHandler.aspx?act=scmrgnshplist";
+					var params:URLVariables = new URLVariables();
+					params.sid=sid;
+					AppUtil.req(url,params,onGetSchemaRegionShapeResult,onFault);
+					this.cursorManager.setBusyCursor();	
+				}
+				catch(err:Error){
+					this.cursorManager.removeBusyCursor();
+					showError(String(err),"项目列表");
+				}
+				
+			}
+
+			
+			private function onGetSchemaRegionShapeResult(event:ResultEvent):void{
+				this.cursorManager.removeBusyCursor();	
+				//map.defaultGraphicsLayer.clear();
+				//map.defaultGraphicsLayer.symbol=this.slsRed;
+				
+				var strResult:String=event.result as String;
+				if(strResult){
+					var obj:Object=JSON.parse(strResult);
+					if(obj!=null){
+						var rows:Array=obj.rows as Array;
+						if(rows!=null && rows.length>0){
+							for(var i:int=0;i<rows.length;i++){
+								var geo:Object=rows[i];
+								
+								var polyline:Polyline=new Polyline();
+								var paths:Array=geo.paths[0];
+								if(paths!=null && paths.length>0){
+									var pointArray:Array=new Array();
+									for(var j:int=0;j<paths.length;j++){
+										var points:Array=paths[j];
+										var mpt:MapPoint=new MapPoint(points[0],points[1]);
+										pointArray.push(mpt);										
+									}
+									polyline.paths=[pointArray];
+								}
+								var gra:Graphic=new Graphic(polyline);
+								gra.symbol=this.slsRed;
+								map.defaultGraphicsLayer.add(gra);
+							}
+							showSchemaRegionUpstream();
+						}
+					}
+				}
+				else{
+					this.cursorManager.removeBusyCursor();	
+				}				
+				
+			}
+			
+			
+			
+			
+			protected function btnClearMap_clickHandler(event:MouseEvent):void
+			{
+				map.defaultGraphicsLayer.clear();
+				upstreamLayer.clear();
+			}
+			
+			private function btnRefresh_clickHandler(event:MouseEvent):void{
+				doGetVisibleRiverSeg();
+			}
+			
+		]]>
+	</fx:Script>
+	<viewer:WidgetTemplate id="wTemplate"
+						   closed="widgetClosedHandler(event)"
+						   open="widgetOpenedHandler(event)">
+		<s:VGroup width="100%" height="100%" alpha="{styleAlpha}">
+		<s:DataGrid width="100%" height="100%" id="prjListDG" 					
+					gridClick="onGridClick( event );" alpha="{styleAlpha}"
+					alternatingRowColors="[ #EDEDED]"
+					>
+			<s:columns>
+				<s:ArrayList>
+					<s:GridColumn dataField="SID" headerText="方案编号"></s:GridColumn>
+					<s:GridColumn dataField="NAME" headerText="方案名称"></s:GridColumn>
+					<s:GridColumn dataField="REMARK" headerText="方案说明"></s:GridColumn>
+					<s:GridColumn dataField="SLNCLASS" headerText="方案类别" visible="false"></s:GridColumn>
+					<s:GridColumn dataField="EXT" headerText="方案范围" visible="false"></s:GridColumn>
+					<s:GridColumn dataField="GUID" headerText="guid" visible="false"></s:GridColumn>
+				</s:ArrayList>
+			</s:columns>
+			<s:typicalItem>  
+				<fx:Object SID="20131214HP000" NAME="关于水文预报方案1" REMARK="这是关于水文预报的方案说明" SLNCLASS="slnclass" GUID="guid"></fx:Object>  
+			</s:typicalItem>			
+		</s:DataGrid>
+			<s:HGroup>
+		<mx:LinkButton click="btnClearMap_clickHandler(event)" label="清除"/>   
+		<mx:LinkButton click="btnRefresh_clickHandler(event)" label="刷新"/>
+			</s:HGroup>
+		</s:VGroup>
+	</viewer:WidgetTemplate>
+</viewer:BaseWidget>

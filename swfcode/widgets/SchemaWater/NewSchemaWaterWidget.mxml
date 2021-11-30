@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx" 
+				   xmlns:viewer="jzjw.winder.viewer.*" 
+				   initialize="basewidget_initializeHandler()"
+				   widgetConfigLoaded="basewidget_widgetConfigLoaded()">
+	
+	<fx:Script>
+		<![CDATA[
+			import jzjw.winder.viewer.AppEvent;
+			import jzjw.winder.viewer.AppUtil;
+			import jzjw.winder.viewer.ViewerContainer;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.rpc.events.ResultEvent;
+			
+			
+			private var reqUrl:String="";
+			private var title:String="新建水文预报方案";
+			private var newPrjId:String="";
+			private var newPrjName:String="";
+			
+			private function basewidget_initializeHandler():void{
+				if (isPartOfPanel) // if widget is part of "left", "right" or "bottom" panel
+				{
+					this.percentWidth = this.percentHeight = 100;
+					wTemplate.percentWidth = wTemplate.percentHeight = 100;
+				}
+				else
+				{
+					wTemplate.width = 320;
+					wTemplate.height = 400;
+				}				
+			}
+			
+			private function basewidget_widgetConfigLoaded():void{
+				if (configXML){
+					reqUrl = configXML.url||"" ;
+				}
+				
+				AppEvent.addListener(AppEvent.DATA_PUBLISH, sharedDataUpdated);
+			}
+			
+			private function sharedDataUpdated(event:AppEvent):void{
+				var data:Object = event.data;
+				if(data.key=="newwaterprjid"){
+					var ac:ArrayCollection=data.collection;
+					txtWaterPrjId.text=ac.getItemAt(0) as String;
+					txtWaterPrjName.setFocus();
+					btnNewWaterPrj.enabled=true;
+				}				
+			}
+			
+			
+			protected function newWaterPrj_clickHandler(event:MouseEvent):void
+			{
+				if(txtWaterPrjName.text==""){
+					txtWaterPrjName.setFocus();	
+					return ;
+				}
+				if(txtWaterPrjId.text==""){
+					Alert.show("无方案编号",title);
+					return ;
+				}
+					
+				var params:URLVariables = new URLVariables();
+				params.sid=txtWaterPrjId.text;
+				params.name=txtWaterPrjName.text;
+				
+				newPrjId=txtWaterPrjId.text;
+				newPrjName=txtWaterPrjName.text;
+				
+				params.slnclass="w";
+				if(txtWaterPrjDesc.text!=""){
+					params.remark=txtWaterPrjDesc.text;					
+				}
+
+				try{
+					var url:String=reqUrl+"WinderHandler.aspx?act=newscm";
+					AppUtil.req(url,params,onNewWaterPrjResult,onFault);
+					this.cursorManager.setBusyCursor();
+				}
+				catch(err:Error){
+					this.cursorManager.removeBusyCursor();
+					showError(String(err),"新建方案");
+				}
+			}
+			
+		    
+			private function onNewWaterPrjResult(event:ResultEvent):void
+			{
+				var strResult:String=event.result as String;
+				this.cursorManager.removeBusyCursor();	
+				if(strResult)
+				{
+					this.cursorManager.removeBusyCursor();
+					var obj:Object=JSON.parse(strResult);
+					if(obj.msg=="ok"){
+						configData.scmid=newPrjId;
+						var ac:ArrayCollection=new ArrayCollection();
+						ac.addItem(newPrjName);
+						addSharedData("currprjname",ac);
+						Alert.show("操作成功！",title);
+						closeMe();
+					}
+					else{
+						Alert.show("操作失败！",title);
+					}
+				}
+			}
+			
+			private function closeMe():void{
+				try{
+					AppEvent.dispatch(AppEvent.WIDGET_CLOSE, ViewerContainer.getInstance().getWidgetId(title));
+				}
+				catch (error:Error){
+					showError(error.message);
+				}				
+			}
+				
+			
+			
+			private function onFault(info:Object, token:Object = null) : void
+			{                    
+				this.cursorManager.removeBusyCursor(); 
+				showError(info.toString());
+			}
+			
+			private function widgetClosedHandler(event:Event):void{
+				
+			}
+			
+			private function widgetOpenedHandler(event:Event):void{
+				txtWaterPrjName.text="";
+				txtWaterPrjDesc.text="";
+				if(txtWaterPrjId.text=="")btnNewWaterPrj.enabled=false;
+				else {
+					if(txtWaterPrjName.text=="")txtWaterPrjName.setFocus();
+					btnNewWaterPrj.enabled=true;
+				}
+			}
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<s:HTTPService url="WinderHandler.aspx?" showBusyCursor="true"/>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<viewer:WidgetTemplate id="wTemplate" 
+						   closed="widgetClosedHandler(event)"
+						   open="widgetOpenedHandler(event)">
+		<s:Form width="100%" height="100%">
+			<s:FormItem label="方案编号">
+				<s:TextInput id="txtWaterPrjId" enabled="false"/>
+			</s:FormItem>
+			<s:FormItem label="方案名称">
+				<s:TextInput id="txtWaterPrjName"/>
+			</s:FormItem>
+			<s:FormItem label="方案说明">
+				<s:TextArea id="txtWaterPrjDesc" />
+			</s:FormItem>
+			<s:FormItem>
+				<s:Button id="btnNewWaterPrj" enabled="false" label="创建" click="newWaterPrj_clickHandler(event)"/>
+			</s:FormItem>
+		</s:Form>
+		
+		
+	</viewer:WidgetTemplate>
+</viewer:BaseWidget>

@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx"
+				   xmlns:esri="http://www.esri.com/2008/ags"
+				   xmlns:viewer="com.esri.viewer.*" 
+				   xmlns:flash="flash.text.*"
+				   initialize="basewidget_initializeHandler()"
+				   widgetConfigLoaded="basewidget_widgetConfigLoaded()"
+				   xmlns:symbols="com.esri.ags.symbols.*">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<s:RadioButtonGroup id="radiogroup1" change="radiogroup1_changeHandler(event)"/>
+		<s:RadioButtonGroup id="radiogroup2" change="radiogroup2_changeHandler(event)"/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[		
+			import com.esri.ags.Graphic;
+			import com.esri.ags.SpatialReference;
+			import com.esri.ags.geometry.Extent;
+			import com.esri.ags.geometry.Geometry;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.ags.symbols.CompositeSymbol;
+			import com.esri.ags.symbols.PictureMarkerSymbol;
+			import com.esri.ags.symbols.SimpleMarkerSymbol;
+			import com.esri.ags.symbols.Symbol;
+			import com.esri.ags.symbols.TextSymbol;
+			import com.esri.ags.utils.WebMercatorUtil;
+			
+			import com.esri.viewer.AppEvent;
+			import com.esri.viewer.AppUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.rpc.events.ResultEvent;
+			private var reqUrl:String="";
+			private var ac:ArrayCollection;
+			private var currRainsLayer:GraphicsLayer;
+			private var objrainsymbol:Object;
+			private function basewidget_initializeHandler():void{
+				if (isPartOfPanel) 
+				{
+					this.percentWidth = this.percentHeight = 100;
+					wTemplate.percentWidth = wTemplate.percentHeight = 100;
+				}
+				else
+				{
+					wTemplate.width = 360;
+					wTemplate.height = 120;
+				}				
+			}
+			//读取配置文件
+			private function basewidget_widgetConfigLoaded():void{
+				if (configXML){
+					reqUrl = configXML.url;
+				}
+				getrains();
+			}
+
+			private function getrains():void
+			{
+				currRainsLayer=map.getLayer("currRainsLayer") as GraphicsLayer;
+				if(currRainsLayer !=null)
+					objrainsymbol= (currRainsLayer.symbol as CompositeSymbol).symbols;
+				else
+					objrainsymbol=null;
+			}
+			//清除
+			protected function btnclear_clickHandler(event:MouseEvent):void
+			{
+				currRainsLayer.clear();
+			}
+			private function onFault(info:Object, token:Object = null) : void{                    
+				this.cursorManager.removeBusyCursor(); 
+			}
+			
+			
+			protected function radiogroup1_changeHandler(event:Event):void
+			{
+				if(objrainsymbol !=null )
+				{
+					if(this.radiogroup1.selection.id=="STNM")
+						(objrainsymbol[1] as TextSymbol).textAttribute="STNM";
+					else
+						(objrainsymbol[1] as TextSymbol).textAttribute="ID";
+				}				
+			}
+			protected function radiogroup2_changeHandler(event:Event):void
+			{
+				if(currRainsLayer !=null )
+				{
+					if(this.radiogroup2.selection.id=="open")
+						currRainsLayer.visible=true;
+					else
+						currRainsLayer.visible=false;
+				}
+				
+			}
+			private function widgetOpenedHandler(event:Event):void
+			{
+				getrains();
+			}
+		]]>
+	</fx:Script>
+	<viewer:WidgetTemplate id="wTemplate" open="widgetOpenedHandler(event)">
+		<s:VGroup width="100%" height="100%" paddingTop="0" paddingLeft="0">
+			<s:HGroup width="100%" paddingLeft="5" paddingRight="5" paddingTop="5" verticalAlign="middle">
+				<s:Label text="Label Type："/>	
+				<s:RadioButton label="Label station name" groupName="radiogroup1" selected="true"  id="STNM"/> 
+				<s:RadioButton label="Label station no" groupName="radiogroup1" id="ID"/> 
+			</s:HGroup>
+			<s:HGroup width="100%" paddingLeft="5" paddingRight="5" paddingTop="5" verticalAlign="middle">
+				<s:Label text="Layer Control："/>
+				<s:RadioButton label="Open" groupName="radiogroup2" selected="true" id="open"/> 
+				<s:RadioButton label="Close" groupName="radiogroup2" id="close"/> 
+			</s:HGroup>
+		</s:VGroup>
+	</viewer:WidgetTemplate>
+</viewer:BaseWidget>

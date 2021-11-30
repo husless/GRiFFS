@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx"
+				   xmlns:esri="http://www.esri.com/2008/ags"
+				   xmlns:Search="widgets.History.*"
+				   xmlns:viewer="com.esri.viewer.*" 
+				   initialize="basewidget_initializeHandler()"
+				   widgetConfigLoaded="basewidget_widgetConfigLoaded()"
+				   xmlns:components="com.esri.viewer.components.*"
+				   >
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.TimeExtent;
+			import com.esri.ags.events.LayerEvent;
+			import com.esri.ags.events.TimeExtentEvent;
+			import com.esri.ags.layers.ArcGISDynamicMapServiceLayer;
+			import com.esri.ags.layers.FeatureLayer;
+			import com.esri.ags.layers.supportClasses.TimeInfo;
+			
+			import com.esri.viewer.AppEvent;
+			import com.esri.viewer.AppUtil;
+			import com.esri.viewer.ViewerContainer;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.formatters.DateFormatter;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.http.HTTPService;
+			
+			private var reqUrl:String="";
+			private var MapServicesURL:String="";
+			public var noticeText:String="";
+			
+			
+			public var flayer:ArcGISDynamicMapServiceLayer=new ArcGISDynamicMapServiceLayer();
+			private var formater:DateFormatter=new DateFormatter();
+			private function basewidget_initializeHandler():void
+			{
+				if (isPartOfPanel) 
+				{
+					this.percentWidth = this.percentHeight = 100;
+					wTemplate.percentWidth = wTemplate.percentHeight = 100;
+				}
+				else
+				{
+					wTemplate.width = 420;
+					wTemplate.height = 110;
+				}	
+				
+			}
+			private function basewidget_widgetConfigLoaded():void{
+		    	if (configXML){
+			    	//影像服务的地址
+			    	//reqUrl = configXML.url;
+					//MapServicesURL=configXML.MapServicesURL;
+		         }
+				AppEvent.addListener(AppEvent.DATA_PUBLISH, sharedDataUpdatedPublish);
+				AppEvent.addListener(AppEvent.DATA_SENT,sharedDataUpdated);
+				AppEvent.dispatch(AppEvent.DATA_FETCH_ALL);
+				//AppEvent.dispatch(AppEvent.DATA_NEW_PUBLISHED);
+				map.timeSlider=timeSlider;
+				this.cursorManager.removeBusyCursor();
+		     	/*
+				//1秒后执行  ren添加
+				var timer:Timer=new Timer(1000,1);
+		    	timer.addEventListener(TimerEvent.TIMER_COMPLETE,onTimerComplete);
+			    timer.start();
+				*/
+			}			
+			private function sharedDataUpdatedPublish(event:AppEvent):void
+			{
+				//20140506修改代码
+				//var data:Object = event.data.key("ServiceURL");
+				
+				//var ac:ArrayCollection=event.data.collection as ArrayCollection;//data.collection;
+				//var strServiceURL:String=ac.getItemAt(0) as String;	
+				if(event.data.key=="ServiceURL")
+				{
+					var ac:ArrayCollection=event.data.collection as ArrayCollection;//data.collection;
+					var strServiceURL:String=ac.getItemAt(0) as String;	
+					if(flayer)
+					{
+						//清除
+						map.removeLayer(flayer);
+					}
+					//map.timeSlider=timeSlider;
+					flayer=new ArcGISDynamicMapServiceLayer();
+					flayer.url=strServiceURL;
+					flayer.id="HisLayer";
+					flayer.addEventListener(LayerEvent.LOAD,HisLayer_loadHandler);
+					//flayer.alpha=0.4;
+					map.addLayer(flayer,3);
+					//AppEvent.dispatch(AppEvent.WIDGET_RUN,ViewerContainer.getInstance().getWidgetId("图例"));
+					//ViewerContainer.getInstance().runWidget("图例");
+				}
+				
+			}
+			
+			//监听事件
+			private function sharedDataUpdated(event:AppEvent):void
+			{
+				//20140506修改代码
+				
+				var data:Object = event.data.find("ServiceURL");
+				if(data !=null)
+				{
+					var ac:ArrayCollection=data as ArrayCollection;//data.collection;
+					if(ac.length>0)
+					{
+						var strServiceURL:String=ac.getItemAt(0) as String;	
+						if(flayer)
+						{
+							//清除
+							map.removeLayer(flayer);
+						}
+						//map.timeSlider=timeSlider;
+						flayer=new ArcGISDynamicMapServiceLayer();
+						flayer.url=strServiceURL;
+						flayer.id="HisLayer";
+						flayer.addEventListener(LayerEvent.LOAD,HisLayer_loadHandler);
+						//flayer.alpha=0.4;
+						map.addLayer(flayer,3);
+						//AppEvent.dispatch(AppEvent.WIDGET_RUN,ViewerContainer.getInstance().getWidgetId("图例"));
+						//ViewerContainer.getInstance().runWidget("图例");
+					}
+				}
+				
+			}
+			
+			protected function HisLayer_loadHandler(event:LayerEvent):void
+			{
+				//timeSlider.createTimeStopsByCount(flayer.timeInfo.timeExtent); // defaults to 10 intervals
+				//间隔6小时
+				timeSlider.createTimeStopsByTimeInterval(flayer.timeInfo.timeExtent,6,TimeInfo.UNIT_HOURS);
+				
+				//东八区 时区的原因
+				//timeSlider.createTimeStopsByTimeInterval(flayer.timeInfo.timeExtent.offset(-8,TimeInfo.UNIT_HOURS),6,TimeInfo.UNIT_HOURS);
+				//设置透明度
+				//flayerAlpha.layer=flayer;
+			}
+			private function onTimerComplete(event:TimerEvent):void{
+			    /*
+				//AppEvent.addListener(AppEvent.DATA_PUBLISH,sharedDataUpdated);
+				//获取服务列表
+				//"http://localhost:6080/arcgis/rest/services/NetCDF?f=json";
+				var httpService:HTTPService=new HTTPService();
+				httpService.url=MapServicesURL;
+				httpService.method="GET";
+				//httpService.useProxy=false;
+				httpService.addEventListener(ResultEvent.RESULT,httpServiceResult);
+				httpService.addEventListener(FaultEvent.FAULT,httpServiceFault);
+				//var parms:URLVariables=new URLVariables();
+				//parms.f="pjson";				
+				httpService.send();//parms
+				
+				
+				//获取服务列表
+				function httpServiceResult(event:ResultEvent):void
+				{
+					var obj:Object=JSON.parse(event.result as String);
+					var str:String;
+					var arr:Array;
+					for each (var i:Object in obj.services) 
+					{
+						str=i.name;
+						arr=str.split("/");
+						Alert.show(i.name);
+					}
+				}
+				function httpServiceFault(event:FaultEvent):void
+				{
+					var obj:String=event.toString();
+				}
+				*/
+				/*
+				AppEvent.addListener(AppEvent.DATA_PUBLISH, sharedDataUpdated);
+				map.timeSlider=timeSlider;
+				flayer.url=reqUrl;
+				flayer.id="HisLayer";
+				flayer.addEventListener(LayerEvent.LOAD,HisLayer_loadHandler);
+				//flayer.alpha=0.4;
+				map.addLayer(flayer,3);
+				*/
+			}
+
+			private function widgetClosedHandler(event:Event):void{
+				
+				//AppEvent.dispatch(AppEvent.WIDGET_RUN,ViewerContainer.getInstance().getWidgetId("图例"));
+				//AppEvent.dispatch(AppEvent.WIDGET_RUN,ViewerContainer.getInstance().closeWidget(("图例"));'
+				ViewerContainer.getInstance().closeWidget("Legend");
+				if(flayer)
+				{
+					//清除
+					map.removeLayer(flayer);
+				}
+			}
+			//打开窗口
+			private function widgetOpenedHandler(event:Event):void{
+				ViewerContainer.getInstance().runWidget("Legend");
+			}
+			//当时间发生改变
+			private function onTimeChange(e:TimeExtentEvent):void{				
+				formater.formatString="YYYY年MM月DD日JJ时";				
+				//var timeExtent:TimeExtent=e.timeExtent;
+				
+				if(e.timeExtent!=null)
+				{
+					var timeExtent:TimeExtent=e.timeExtent.offset(-8,TimeInfo.UNIT_HOURS);
+					var startTime:String= formater.format(timeExtent.startTime);
+					var endTime:String=formater.format(timeExtent.endTime);
+
+					timeLabel.text = endTime;
+				}
+				
+			}
+		]]>
+	</fx:Script>
+	<viewer:WidgetTemplate id="wTemplate" 
+						   closed="widgetClosedHandler(event)"
+						   open="widgetOpenedHandler(event)">
+		<mx:VBox width="100%" horizontalAlign="center"  height="100%" verticalAlign="middle">
+			<mx:VBox horizontalAlign="center" width="100%" >
+				<mx:Label id="timeLabel" fontSize="14"  fontWeight="bold"/>				
+				<mx:HBox  horizontalAlign="center" width="100%"  verticalAlign="middle" id="timeSliderContainer">
+					<esri:TimeSlider  id="timeSlider" width="100%" thumbMovingRate="2000"  timeExtentChange="onTimeChange(event)" />
+				</mx:HBox>
+			</mx:VBox>
+			<!--
+			<mx:HBox width="100%" verticalAlign="middle">
+				<mx:Label text="设置透明度" fontSize="15"/>
+				<Search:LayerAlpha width="100%" id="flayerAlpha" />				
+			</mx:HBox>	
+			-->
+		</mx:VBox>
+	</viewer:WidgetTemplate>
+</viewer:BaseWidget>

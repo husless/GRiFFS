@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration> 
+<!-- 
+ <url>http://localhost/test/</url>
+  -->
+ <!--调用之前发布好的服务
+  <url>http://101.6.54.216/test/</url>
+  -->
+  <!--调用Ren发布服务-->
+  <!--<url>http://101.6.54.216/YUNWEBV1.0/</url>-->
+  
+   <!--NetCDF文件夹下的服务列表 
+  <MapServicesURL>http://localhost:6080/arcgis/rest/services/NetCDF?f=json</MapServicesURL>
+  -->
+   <!--服务器上的NetCDF文件夹服务列表 --> 
+   <MapServicesURL>http://101.6.54.216:6080/arcgis/rest/services/NetCDF?f=json</MapServicesURL>
+   <!--其他降雨数据服务地址--> 
+   <RainDataServiceURL>http://101.6.54.28:6080/arcgis/rest/services/Precipitation/ecmwf_all/MapServer</RainDataServiceURL>
+   <webserviceUrl>http://101.6.54.216/YUNWSV1.0/WS.asmx?wsdl</webserviceUrl>
+  <!--机构中文名和英文名配置信息
+  <field org_en="A" org_cn="机构2"/>
+  <field org_en="B" org_cn="机构3"/>
+  <field org_en="C" org_cn="机构4"/>
+  <field org_en="D" org_cn="机构5"/>-->
+  <field org_en="ecmf" org_cn="ecmf"/>  
+</configuration>

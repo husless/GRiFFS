@@ -1,0 +1,315 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx"
+				   xmlns:viewer="com.esri.viewer.*"
+				   xmlns:esri="http://www.esri.com/2008/ags"
+				   xmlns:components="com.esri.viewer.components.*"
+				   xmlns:RDateTime="com.esri.viewer.components.RDateTime.*"
+				   initialize="basewidget_initializeHandler()"
+				   widgetConfigLoaded="basewidget_widgetConfigLoaded()">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<s:DateTimeFormatter id="dateTimeFormatter" dateTimePattern="YYYY-MM-DD JJ:NN:SS"/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.viewer.AppEvent;
+			import com.esri.viewer.AppUtil;
+			import com.esri.viewer.ViewerContainer;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.formatters.DateFormatter;
+			import mx.rpc.events.ResultEvent;
+
+			//预报机构
+			[Bindable]
+			private var ArrayCOrg:ArrayCollection=new ArrayCollection();
+			private var fieldList:XMLList;
+			private var reqUrl:String="";
+			//方案属性
+			private var schemaAttr:Object;
+			//初始化
+			private function basewidget_initializeHandler():void{
+				wTemplate.width = 330;
+				wTemplate.height = 420;//380;					
+			}
+			//添加监听
+			protected function basewidget_widgetConfigLoaded():void{				
+				//AppEvent.addListener(AppEvent.DATA_PUBLISH, sharedDataUpdated);		
+				if (configXML){
+					reqUrl = configXML.url;
+					//读取机构配置文件
+					fieldList=configXML.field;
+					for (var i :int = 0; i < fieldList.length(); i++){
+						var orgEn:String = fieldList[i].@org_en;
+						var orgCn:String = fieldList[i].@org_cn;
+						var obj:Object={
+							labelCn:orgCn,
+							dataEn:orgEn				
+						};
+						ArrayCOrg.addItem(obj);
+						//cbxOrg.selectedIndex=0;
+					}
+				}
+				//添加监听事件 
+				AppEvent.addListener(AppEvent.DATA_PUBLISH, sharedDataUpdatedPublish);
+				AppEvent.addListener(AppEvent.DATA_SENT,sharedDataUpdated);
+				AppEvent.dispatch(AppEvent.DATA_FETCH_ALL);
+			}
+			private function sharedDataUpdatedPublish(event:AppEvent):void{				
+				var data:Object = event.data;
+				if(data.key=="SchemaAttribute"){
+					var ac:ArrayCollection=data.collection;
+					sharedData(ac);
+				}
+			}
+			private function sharedDataUpdated(event:AppEvent):void{
+				var data:Object = event.data.find("SchemaAttribute");
+				if(data !=null){
+					var ac:ArrayCollection=data as ArrayCollection;//data.collection;
+					sharedData(ac);
+				}						
+			}
+			//共享数据函数
+			private function sharedData(ac:ArrayCollection):void
+			{
+				if(ac !=null && ac.length>0){
+					schemaAttr=ac.getItemAt(0);
+					//填充方案属性信息
+					txtWaterPrjId.text=schemaAttr["SID"];
+					txtWaterPrjName.text=schemaAttr["NAME"];
+					txtWaterPrjDesc.text=schemaAttr["REMARK"];
+					sDT.text=schemaAttr["STARTTIME"];
+					eDT.text=schemaAttr["ENDTIME"];
+					sDT.data=DateFormatter.parseDateString(schemaAttr["STARTTIME"]);
+					eDT.data=DateFormatter.parseDateString(schemaAttr["ENDTIME"]);
+					preHeat.text=schemaAttr["PREHEAT"];
+					for(var i:int=0;i<ArrayCOrg.length;i++)
+					{
+						if(ArrayCOrg[i].dataEn ==schemaAttr["ORG"])
+						{
+							cbxOrg.textInput.text=ArrayCOrg[i].labelCn;
+							break;
+						}
+					}					
+
+					cmbRainfall.textInput.text=schemaAttr["RAINFALLDATA"];
+					cmbRunoff.textInput.text=schemaAttr["RUNOFFMODEL"];
+					cmbRiver.textInput.text=schemaAttr["RIVERMODEL"];
+				}
+			}
+			//获取模型参数
+			private function getModelList():void{
+				try{
+					var url:String=reqUrl+"WinderHandler.aspx?act=modellist";
+					var params:URLVariables = new URLVariables();
+					params.item="rainfall";
+					AppUtil.req(url,params,onGetModelListResult,onFault);
+					this.cursorManager.setBusyCursor();	
+				}
+				catch(err:Error){
+					this.cursorManager.removeBusyCursor();
+					showError(String(err));
+				}
+			}
+			//获取模型参数  返回结果
+			private function onGetModelListResult(event:ResultEvent):void{
+				var strResult:String=event.result as String;
+				this.cursorManager.removeBusyCursor();	
+				if(strResult){
+					var obj:Object=JSON.parse(strResult);
+					if(obj!=null){
+						var rows:Array=obj.rows as Array;
+						if(rows!=null && rows.length>0){
+							//降雨 产流 河道
+							var rainfallList:ArrayCollection=new ArrayCollection();
+							var runoffList:ArrayCollection=new ArrayCollection();
+							var riverList:ArrayCollection=new ArrayCollection();
+							
+							for(var i:int=0;i<rows.length;i++){
+								var model:Object=rows[i];
+								var item:String=model.ITEM as String;
+								var value:String=model.VALUE as String;
+								if(item=="rainfall"){
+									rainfallList.addItem({label:value,data:value});
+								}
+								if(item=="runoff"){
+									runoffList.addItem({label:value,data:value});
+								}
+								if(item=="river"){
+									riverList.addItem({label:value,data:value});
+								}								
+							}
+							//填充数据
+							cmbRainfall.dataProvider=rainfallList;
+							cmbRainfall.selectedItem={label:schemaAttr["RAINFALLDATA"],data:schemaAttr["RAINFALLDATA"]};
+							cmbRunoff.dataProvider=runoffList;
+							cmbRunoff.selectedItem={label:schemaAttr["RUNOFFMODEL"],data:schemaAttr["RUNOFFMODEL"]};  
+							cmbRiver.dataProvider=riverList;	
+							cmbRiver.selectedItem={label:schemaAttr["RIVERMODEL"],data:schemaAttr["RIVERMODEL"]};
+						}
+					}
+				}
+				else{
+					this.cursorManager.removeBusyCursor();	
+				}
+			}
+			//获取模型参数  错误提示
+			private function onFault(info:Object, token:Object = null) : void{                    
+				this.cursorManager.removeBusyCursor(); 
+			}
+
+			//修改
+			protected function btnPrjExit_clickHandler(event:MouseEvent):void
+			{				
+				//启动
+				txtWaterPrjName.editable=true;				
+				//txtWaterPrjDesc.editable=true;
+				
+				sDT.enabled=true;
+				eDT.enabled=true;
+				
+				cmbRainfall.enabled=true;
+				cmbRunoff.enabled=true;
+				cmbRiver.enabled=true;
+				
+				btnPrjOK.enabled=true;
+				preHeat.enabled=true;
+				this.cbxOrg.enabled=true;
+				//获取模型列表
+				getModelList();
+				
+			}
+			//确定修改
+			protected function btnPrjOK_clickHandler(event:MouseEvent):void
+			{	
+				//开始和结束时间
+				var stime:String=sDT.getDateString();
+				var etime:String=eDT.getDateString();
+				
+				var dateFormatter:DateFormatter = new DateFormatter(); 
+				dateFormatter.formatString = "YYYY-MM-DD JJ:NN:SS"; 
+				var myPattern1:RegExp=/-|:| /g; 
+				
+				var s1:String=dateFormatter.format(stime);
+				s1=s1.replace(myPattern1,'');
+				var s2:String=dateFormatter.format(etime);
+				s2=s2.replace(myPattern1,'');
+				if(Number(s1)>=Number(s2)){
+					Alert.show("模拟时段输入有误，开始时间应早于结束时间");
+					return;
+				}	
+				if(isNaN(Number(preHeat.text)))
+				{
+					Alert.show("请输入正确的预热期参数","提示");
+					return;
+				}
+				
+				
+				//模型参数
+				var rainfall:String=cmbRainfall.textInput.text;
+				var runoff:String=cmbRunoff.textInput.text;
+				var river:String=cmbRiver.textInput.text;
+				var org:String=cbxOrg.selectedItem["dataEn"];
+				//方案名称
+				var name:String=txtWaterPrjName.text;
+				try {
+					//方案参数
+					var params:URLVariables=new URLVariables();
+					params.sid=configData.scmid;
+					params.stime=stime;
+					params.etime=etime;
+					params.rainfall=rainfall;
+					params.runoff=runoff;
+					params.river=river;
+					params.name=name;
+					params.preheat=preHeat.text;
+					params.org=org;
+					var url:String=reqUrl+"WinderHandler.aspx?act=scmparams";
+					AppUtil.req(url,params,onSubmitSchemaParams,onFault);	
+					this.cursorManager.setBusyCursor();	
+				}
+				catch(err:Error){
+					this.cursorManager.removeBusyCursor();
+					showError(String(err),"参数修改");
+				}				
+			}			
+			//方案参数 返回结果
+			private function onSubmitSchemaParams(event:ResultEvent):void{
+				var strResult:String=event.result as String;
+				this.cursorManager.removeBusyCursor();	
+				if(strResult){
+					var obj:Object=JSON.parse(strResult);
+					if(obj.msg=="ok"){
+						Alert.show("方案参数修改成功！");
+						closeMe();
+					}
+				}
+				else{
+					this.cursorManager.removeBusyCursor();
+				}
+				
+			}
+			//关闭
+			private function closeMe():void{
+				try{
+					AppEvent.dispatch(AppEvent.WIDGET_CLOSE, ViewerContainer.getInstance().getWidgetId("方案属性"));
+				}
+				catch (error:Error){
+					showError(error.message);
+				}				
+			}
+			//关闭按钮
+			protected function btnPrjClose_clickHandler(event:MouseEvent):void
+			{
+				closeMe();
+			}			
+		]]>
+	</fx:Script>
+	<viewer:WidgetTemplate id="wTemplate" minWidth="330" minHeight="380">
+		<s:VGroup gap="-14" width="100%" height="100%" horizontalAlign="left" verticalAlign="middle">	
+			<s:Form width="100%" height="100%" horizontalCenter="0">
+				<s:layout>
+					<s:FormLayout gap="-14"/>
+				</s:layout>
+				<s:FormItem label="方案编号">
+					<s:TextInput id="txtWaterPrjId" enabled="false" width="100%"/>
+				</s:FormItem>
+				<s:FormItem label="方案名称">
+					<s:TextInput id="txtWaterPrjName" width="100%" editable="false"/>
+				</s:FormItem>
+				<s:FormItem label="方案说明" width="100%">
+					<s:TextArea id="txtWaterPrjDesc" width="100%" editable="false" height="50" />
+				</s:FormItem>
+				<s:FormItem label="开始时间" width="100%">
+					<!--<components:MyDateField id="sDT" width="100%" enabled="false"/>-->
+					<RDateTime:CustomizeDateField id="sDT" width="100%" enabled="false"/>
+				</s:FormItem>
+				<s:FormItem label="结束时间" width="100%">
+					<!--<components:MyDateField id="eDT" width="100%" enabled="false"/>-->
+					<RDateTime:CustomizeDateField id="eDT" width="100%" enabled="false"/>
+				</s:FormItem>
+				<s:FormItem label="预热期(天)" width="100%">
+					<s:TextInput id="preHeat" width="100%" enabled="false"/>
+				</s:FormItem>
+				<s:FormItem label="Forecast Agency" width="100%">
+					<s:ComboBox id="cbxOrg" dataProvider="{ArrayCOrg}" labelField="labelCn" width="100%" enabled="false"/>
+				</s:FormItem>
+				<s:FormItem label="模型选择">
+					<mx:VBox verticalAlign="middle" width="100%">
+						<mx:HBox horizontalAlign="left" verticalAlign="middle" width="100%"><s:Label text="降雨数据"/><s:ComboBox id="cmbRainfall" enabled="false" useHandCursor="true" width="100%"/></mx:HBox>
+						<mx:HBox horizontalAlign="left" verticalAlign="middle" width="100%"><s:Label text="产流模型"/><s:ComboBox id="cmbRunoff" enabled="false"  width="100%" /></mx:HBox>
+						<mx:HBox horizontalAlign="left" verticalAlign="middle" width="100%"><s:Label text="河道模型"/><s:ComboBox id="cmbRiver" enabled="false"  width="100%" /></mx:HBox>
+					</mx:VBox>
+				</s:FormItem>
+			</s:Form>	
+			<s:HGroup horizontalAlign="right" paddingRight="40" width="100%">
+				<s:Button id="btnPrjExit" label="修改" click="btnPrjExit_clickHandler(event)"/>
+				<s:Button id="btnPrjOK" enabled="false"  label="确定" click="btnPrjOK_clickHandler(event)"/>				
+				<s:Button id="btnPrjClose" label="关闭" click="btnPrjClose_clickHandler(event)"/>	
+			</s:HGroup>
+		</s:VGroup>
+	</viewer:WidgetTemplate>
+</viewer:BaseWidget>

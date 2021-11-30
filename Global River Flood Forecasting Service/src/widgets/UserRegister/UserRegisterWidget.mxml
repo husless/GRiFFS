@@ -1,0 +1,638 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx"
+				   xmlns:esri="http://www.esri.com/2008/ags"
+				   xmlns:viewer="com.esri.viewer.*" 
+				   initialize="basewidget_initializeHandler()"
+				   widgetConfigLoaded="basewidget_widgetConfigLoaded()">
+	
+	<fx:Declarations>
+		<!-- 表单验证 userregister -->	
+		<mx:StringValidator id="usernamevalidate"  source="{username}" property="text" minLength="4" maxLength="20" tooShortError="长度必须大于4" tooLongError="长度必须小于20" requiredFieldError="请输入用户名" trigger="{submit}" triggerEvent="click"/>
+		<mx:StringValidator id="passwordvalidate" source="{password}" property="text" minLength="6" tooShortError="长度必须大于6" trigger="{submit}" triggerEvent="click"/>
+		<mx:EmailValidator id="emailvalidate" source="{email}" property="text" trigger="{submit}" triggerEvent="click"/>
+		<mx:PhoneNumberValidator id="telephonevalidate" source="{telephone}" property="text" trigger="{submit}" triggerEvent="click"/>
+		<mx:StringValidator id="fullnamevalidate" source="{fullname}" property="text" minLength="2" maxLength="20" tooShortError="长度必须大于2" tooLongError="长度必须小于20"  trigger="{submit}" triggerEvent="click"/>
+		
+		<!--验证两次密码是否一样-->
+		<mx:RegExpValidator id="rpwdV" source="{passwordR}" property="text" expression="^{password.text}$"	requiredFieldError="不能为空" noMatchError="两次密码不一致"/>
+		<!--		<mx:ZipCodeValidator id="zipcodevalidate" source="{zipcode}" property="text" trigger="{submit}" triggerEvent="click"/>
+		-->		
+		
+		<!--<mx:DateValidator source="{dob}" property="text"/>		
+		<mx:NumberValidator source="{age}" property="text" integerError="Enter Integer value"
+		minValue="18" maxValue="100" domain="int"/>
+		<mx:SocialSecurityValidator source="{ssn}" property="text"/>-->
+		
+		<esri:GeometryService id="geometryService"
+							  fault="geometryService_faultHandler(event)"
+							  simplifyComplete="geometryService_simplifyCompleteHandler(event)"/>
+		<esri:IdentifyTask id="identifyTask"   concurrency="last" showBusyCursor="true"  
+						   url="http://101.6.54.28:6080/arcgis/rest/services/gdn/GDN2/MapServer"/>
+		<esri:SimpleLineSymbol id="slsIdentify"  width="10" alpha="0.5" color="#FF00FF" style="solid"/>
+	</fx:Declarations>
+	<fx:Style>
+		@namespace mx "library://ns.adobe.com/flex/mx";
+		.Form{
+			indicatorGap: 10;
+			paddingLeft: 1;
+			paddingRight: 1;
+			paddingTop: 1;
+			paddingBottom: 1;
+			verticalGap:3;
+		}
+	</fx:Style>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import com.esri.ags.events.DrawEvent;
+			import com.esri.ags.events.GeometryServiceEvent;
+			import com.esri.ags.geometry.Extent;
+			import com.esri.ags.geometry.Geometry;
+			import com.esri.ags.geometry.MapPoint;
+			import com.esri.ags.geometry.Polygon;
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.ags.symbols.SimpleMarkerSymbol;
+			import com.esri.ags.symbols.Symbol;
+			import com.esri.ags.tasks.supportClasses.IdentifyParameters;
+			import com.esri.ags.tasks.supportClasses.IdentifyResult;
+			import com.esri.ags.tools.DrawTool;
+			import com.esri.ags.utils.GeometryUtil;
+			
+			import com.esri.viewer.AppEvent;
+			import com.esri.viewer.AppUtil;
+			import com.esri.viewer.ViewerContainer;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.events.ListEvent;
+			import mx.events.ValidationResultEvent;
+			import mx.rpc.AsyncResponder;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.utils.StringUtil;
+			import mx.validators.Validator;
+			
+			import spark.events.IndexChangeEvent;
+			
+			private var ncY:Number;
+			private var reqUrl:String="";
+			private var currentUser:String="";
+			private var finishDrawing:Boolean;
+			private var drawSymbol:Symbol;
+			private var pointSearchTolerance:Number = 3;
+			private var riverCount:Number=3;
+			private var riverArea:Number=1000;
+			public var userGraphicsLayer:GraphicsLayer;
+			
+			private var isRegisterUser:Boolean=false;
+			private var isRegisterUserMore:Boolean=false;
+			[Bindable]
+			private var pointLabel:String= "点选流域出口河段";
+			//学历
+			[Bindable]
+			public var educationArr:ArrayCollection = new ArrayCollection(
+				[ 	{label:"doctor", data:1}, 
+					{label:"master", data:2}, 
+					{label:"bachelor", data:3},
+					{label:"other", data:4}]);
+			[Bindable]
+			//国家
+			public var countryArr:ArrayCollection=new ArrayCollection(
+				[  {label:"china", data:1},
+					{label:"other", data:1}]);
+			//身份 中国
+			[Bindable]
+			public var provinceArr:ArrayCollection=new ArrayCollection(
+				[  {label:"北京市", data:1},
+					{label:"天津市", data:1},
+					{label:"上海市", data:1},					
+					{label:"重庆市", data:1},
+					{label:"河北省", data:1},
+					{label:"河南省", data:1},
+					{label:"云南省", data:1},
+					{label:"辽宁省", data:1},
+					{label:"黑龙江省", data:1},
+					{label:"湖南省", data:1},
+					{label:"安徽省", data:1},
+					{label:"山东省", data:1},
+					{label:"新疆维吾尔", data:1},
+					{label:"江苏省", data:1},
+					{label:"浙江省", data:1},
+					{label:"江西省", data:1},
+					{label:"湖北省", data:1},
+					{label:"广西壮族", data:1},
+					{label:"甘肃省", data:1},
+					{label:"山西省", data:1},
+					{label:"内蒙古", data:1},
+					{label:"陕西省", data:1},
+					{label:"吉林省", data:1},
+					{label:"福建省", data:1},
+					{label:"贵州省", data:1},
+					{label:"广东省", data:1},
+					{label:"青海省", data:1},
+					{label:"西藏", data:1},
+					{label:"四川省", data:1},
+					{label:"宁夏回族", data:1},
+					{label:"海南省", data:1},
+					{label:"台湾省", data:1},
+					{label:"香港特别行政区", data:1},
+					{label:"澳门特别行政区", data:1}]);		
+			private function basewidget_initializeHandler():void
+			{
+				wTemplate.width = 350;
+				wTemplate.height =410;
+			}
+			//添加监听
+			protected function basewidget_widgetConfigLoaded():void{	
+				if (configXML){
+					reqUrl = configXML.url;
+				}	
+				Alert.yesLabel="Yes";
+				Alert.noLabel="No";
+				userGraphicsLayer=new GraphicsLayer();
+				userGraphicsLayer.id="userGraphics";
+				map.addLayer(userGraphicsLayer);
+				
+				var timer:Timer=new Timer(100,1);
+				timer.addEventListener(TimerEvent.TIMER_COMPLETE,onTimerComplete);
+				timer.start();
+			}
+			private function onTimerComplete(event:TimerEvent):void{
+				AppEvent.addListener(AppEvent.DATA_PUBLISH,sharedDataUpdatedPublish);
+				AppEvent.addListener(AppEvent.DATA_SENT,sharedDataUpdated);
+				AppEvent.dispatch(AppEvent.DATA_FETCH_ALL);
+			}
+			private function sharedDataUpdatedPublish(event:AppEvent):void{
+				var data:Object = event.data;
+				if(data.key=="currusername")
+				{
+					var ac:ArrayCollection=data.collection;
+					sharedataCommon(ac);
+					
+				}				
+			}
+			private function sharedDataUpdated(event:AppEvent):void{
+				var data:Object = event.data.find("currusername");
+				//当前用户名称
+				if(data !=null)
+				{
+					var ac:ArrayCollection=data as ArrayCollection;
+					sharedataCommon(ac);
+				}
+			}
+			private function sharedataCommon(ac:ArrayCollection):void
+			{
+				currentUser=ac.getItemAt(0).toString();
+				if(currentUser =="空")
+					isRegisterUser=false;
+				else
+					isRegisterUser=true;
+			}
+			//关闭窗口
+			protected function wTemplate_closedHandler(event:Event):void
+			{
+				clear();
+			}
+			//根据国家填充省份
+			protected function country_changeHandler(event:ListEvent):void
+			{
+				if(event.target.selectedItem.label=="china")
+				{
+					province.dataProvider=provinceArr;;
+				}else
+				{
+					province.dataProvider=new ArrayCollection([{label:"empty",data:1}]);
+				}
+			}
+			//提交
+			protected function submit_clickHandler(event:MouseEvent):void
+			{
+				//验证信息 提示
+				
+				var val:Array=Validator.validateAll([usernamevalidate]); 
+				if(val.length!=0){ 
+					Alert.show("Please check the length of the user name, and the length must be greater than 4","Info");
+					this.username.setFocus();
+					return; 
+				}
+				val=Validator.validateAll([passwordvalidate]); 
+				if(val.length!=0){ 
+					Alert.show("Please check the password, and the length must be greater than 6","Info");
+					this.password.setFocus();
+					return; 
+				}
+				val=Validator.validateAll([rpwdV]); 
+				if(val.length!=0){ 
+					Alert.show("please check the password","Info");
+					this.passwordR.setFocus();
+					return; 
+				}
+				
+				val=Validator.validateAll([emailvalidate]); 
+				if(val.length!=0){ 
+					Alert.show("please check the Email","Info");
+					this.email.setFocus();
+					return; 
+				}
+				val=Validator.validateAll([fullnamevalidate]); 
+				if(val.length!=0){ 
+					Alert.show("please check the real name","Info");
+					this.fullname.setFocus();
+					return; 
+				}
+				
+				val=Validator.validateAll([telephonevalidate]); 
+				if(val.length!=0){ 
+					Alert.show("please check the telephone","Info");
+					this.telephone.setFocus();
+					return; 
+				}
+				/*
+				/*检查所有 --暂时不需要
+				val=Validator.validateAll([usernamevalidate,passwordvalidate,emailvalidate,emailvalidate,telephonevalidate]); 
+				if(val.length!=0){ 
+				//Alert.show("请完善相关资料","信息");
+				return; 
+				}
+				*/
+				try{
+					
+					var url:String=reqUrl+"WinderHandler.aspx?act=userregister";
+					var params:URLVariables = new URLVariables();
+					
+					
+					params.username=username.text;
+					params.password=password.text;
+					params.email=email.text;
+					params.fullname=fullname.text;
+					params.education=education.selectedItem.label;
+					params.country=country.selectedItem.label;
+					params.province=province.selectedItem.label;
+					params.company=company.text;
+					params.address=address.text;					
+					params.zipcode=zipcode.text;
+					params.telephone=telephone.text;
+					currentUser=username.text;
+					/*
+					//测试用
+					//username.text="ryq";
+					params.username="ryq";
+					params.password="ryq";
+					params.email="aa@11";
+					params.fullname="小强";
+					params.education="大学";
+					params.country="中国";
+					params.province="北京";
+					params.company="清华";
+					params.address="清华大学";					
+					params.zipcode="101000";
+					params.telephone="2222";
+					*/
+					AppUtil.req(url,params,onGetUserRegisterResult,onFault);
+					this.cursorManager.setBusyCursor();	
+				}catch(err:Error){
+					this.cursorManager.removeBusyCursor();
+					Alert.show(String(err),"Info");
+				}
+				
+			}
+			//获取提交注册的返回结果
+			private function onGetUserRegisterResult(event:ResultEvent):void{
+				var strResult:String=event.result as String;
+				this.cursorManager.removeBusyCursor();	
+				if(strResult){
+					var obj:Object=JSON.parse(strResult);
+					if(obj.msg=="ok")
+					{
+						//Alert.show("注册成功,请联系系统管理员进行审核......","提示");
+						isRegisterUser=true;
+						isRegisterUserMore=true;
+						Alert.show("Registration is successful, whether or not continue？\r\nNote: the choosed basin area is less than "+riverArea+" Square kilometers.The most optional"+riverCount+" rivers","Info",Alert.YES|Alert.NO,this,ClickHandlerR);	
+					}else
+					{
+						Alert.show("Registration is failed, already exists","Info");
+					}
+				}
+				else{
+					this.cursorManager.removeBusyCursor();
+				}
+			}
+			//注册后，继续选择流域出口
+			private function ClickHandlerR(evt:CloseEvent):void
+			{
+				if(evt.detail ==Alert.YES)
+				{
+					//激活点击河段
+					activateDrawTool(DrawTool.MAPPOINT);
+				}
+			}
+			private function activateDrawTool(value:String):void{
+				finishDrawing = false;
+				//清空
+				map.defaultGraphicsLayer.clear();
+				userGraphicsLayer.symbol=this.slsIdentify;
+				//map.defaultGraphicsLayer.symbol=this.slsIdentify;
+				this.setMapNavigation("","");
+				
+				var status:String;
+				switch (value){
+					case DrawTool.MAPPOINT:{
+						status = pointLabel;
+						drawSymbol = new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_CIRCLE, 15, 0x3FAFDC, 1);
+						break;
+					}
+				}
+				setMapAction(value, status, drawSymbol, searchDrawEnd);
+			}
+			private function searchDrawEnd(event:DrawEvent):void
+			{
+				var geom:Geometry = event.graphic.geometry;
+				
+				if (geom is Polygon && GeometryUtil.polygonSelfIntersecting(geom as Polygon))
+				{
+					geometryService.simplify([ geom ]);
+				}
+				else
+				{
+					if (geom.type == Geometry.MAPPOINT){
+						geom = createExtentAroundMapPoint(geom as MapPoint, pointSearchTolerance);
+					}
+					
+					queryFeaturesGraphical(geom);
+				}
+			}
+			//根据多边形搜索河段
+			private function queryFeaturesGraphical(geom:Geometry):void{
+				var identifyParams:IdentifyParameters = new IdentifyParameters();
+				identifyParams.layerOption = IdentifyParameters.LAYER_OPTION_VISIBLE;
+				identifyParams.returnGeometry = true;
+				identifyParams.tolerance = pointSearchTolerance;
+				identifyParams.width = map.width;
+				identifyParams.height = map.height;
+				identifyParams.geometry = geom;
+				identifyParams.mapExtent = map.extent;
+				identifyParams.spatialReference = map.spatialReference;
+				identifyTask.execute(identifyParams, new AsyncResponder(myResultFunction, myFaultFunction));
+			}
+			public var resultsnew:Array;
+			//identifyTask工具执行结果
+			private function myResultFunction(results:Array, token:Object = null):void 
+			{             
+				resultsnew=results;
+				if(this.currentUser !=""){					 
+					try{
+						var url:String=reqUrl+"WinderHandler.aspx?act=userExtentCount";
+						var params:URLVariables = new URLVariables();
+						params.username=this.currentUser;
+						AppUtil.req(url,params,onuserExtentCount,onFault);
+					}
+					catch(err:Error){
+						showError(String(err),"Info");
+					}
+				}
+			}
+			private function myResultarr(results:Array):void
+			{
+				if (results && results.length > 0)
+				{					
+					//只取一条记录
+					
+					var result:IdentifyResult = results[0];					
+					if(result.layerName!="")
+					{
+						var graphic:Graphic=result.feature;
+						graphic.addEventListener(MouseEvent.CLICK,onSelGraphicClickHandler);
+						
+						var data:Object;
+						var newObj:Object=new Object();//=result.feature.attributes;
+						//newObj.lyrid=result.layerId;
+						//newObj.lyrname=result.layerName;
+						//newObj.area=Number(result["UPSUBAREA"]);
+						//var nc:Number=(map.defaultGraphicsLayer.graphicProvider as ArrayCollection).length;
+						
+						//var nc:Number=(userGraphicsLayer.graphicProvider as ArrayCollection).length;
+						if(isNaN(ncY))
+							return;
+						var nc:Number=ncY;
+						newObj.RC=nc;
+						newObj.RCSum=riverCount;
+						newObj.RCASum=riverArea;
+						newObj.feature=result.feature;
+						newObj.username=currentUser;//this.username.text;//"ryq";			
+						if(nc<riverCount && Number(newObj.feature.attributes["UPSUBAREA"])<=riverArea)
+						{					
+							//判断河段的binstrval是否为0
+							if(newObj.feature.attributes["BINSTRVAL"] !="0")
+							{
+								Alert.show("Please select“BINSTRVAL=0” river","Info");
+								return;
+							}
+							
+							userGraphicsLayer.add(result.feature);
+							var ac:ArrayCollection=new ArrayCollection();
+							ac.addItem(newObj);
+							addSharedData("UserRegist",ac);
+							AppEvent.dispatch(AppEvent.WIDGET_RUN,ViewerContainer.getInstance().getWidgetId("用户注册范围"));
+						}else
+						{
+							if(nc==riverCount)
+							{
+								//userGraphicsLayer.clear();
+								Alert.show("You have to apply more, please contact the administrator","Info");
+							}else
+							{
+								Alert.show("The area of river basin is "+newObj.feature.attributes["UPSUBAREA"]+"Square kilometers，please select less than "+riverArea+"Square kilometers","Info");
+							}
+						}
+						
+					}
+					
+					/*
+					for (var i:int = 0; i < results.length; i++) { 
+					var result:IdentifyResult = results[i];
+					if(result.layerName!=""){
+					var graphic:Graphic=result.feature;
+					graphic.addEventListener(MouseEvent.CLICK,onSelGraphicClickHandler);
+					var newObj:Object=result.feature.attributes;
+					newObj.lyrid=result.layerId;
+					newObj.lyrname=result.layerName;							
+					map.defaultGraphicsLayer.add(result.feature);
+					}
+					}
+					*/
+				}
+			}
+			
+			//当再次点击河段的时候，就不选中
+			private function onSelGraphicClickHandler(event:MouseEvent):void{
+				var graphic:Graphic=event.currentTarget as Graphic;
+				//map.defaultGraphicsLayer.remove(graphic);
+				userGraphicsLayer.remove(graphic);
+			}
+			//失败提示	
+			private function myFaultFunction(error:Object, token:Object = null):void{
+				this.showError(String(error),"Info");
+			}
+			//根据点创建四至范围
+			private function createExtentAroundMapPoint(centerPoint:MapPoint, tolerance:Number):Extent
+			{
+				var screenPoint:Point = map.toScreen(centerPoint as MapPoint);
+				
+				var upperLeftScreenPoint:Point = new Point(screenPoint.x - tolerance, screenPoint.y - tolerance);
+				var lowerRightScreenPoint:Point = new Point(screenPoint.x + tolerance, screenPoint.y + tolerance);
+				
+				var upperLeftMapPoint:MapPoint = map.toMap(upperLeftScreenPoint);
+				var lowerRightMapPoint:MapPoint = map.toMap(lowerRightScreenPoint);
+				
+				return new Extent(upperLeftMapPoint.x, upperLeftMapPoint.y, lowerRightMapPoint.x, lowerRightMapPoint.y, map.spatialReference);
+			}
+			private function geometryService_faultHandler(event:FaultEvent):void{
+				showError(event.fault.toString());
+			}
+			private function geometryService_simplifyCompleteHandler(event:GeometryServiceEvent):void{
+				queryFeaturesGraphical(event.result[0] as Polygon);
+			}
+			//获取模型参数  错误提示
+			private function onFault(info:Object, token:Object = null) : void{                    
+				this.cursorManager.removeBusyCursor(); 
+			}
+			//重置
+			protected function reset_clickHandler(event:MouseEvent):void
+			{
+				clear();
+			}
+			//清空
+			protected function clear():void
+			{
+				this.username.text=null; 
+				this.password.text=null; 
+				this.passwordR.text=null;
+				this.email.text=null; 
+				this.fullname.text=null; 
+				this.education.selectedIndex=0;
+				
+				this.country.selectedIndex=0;
+				this.province.selectedIndex=0;
+				this.company.text=null; 
+				this.address.text=null; 
+				this.zipcode.text=null; 
+				this.telephone.text=null;
+				//isRegisterUser=false;
+				userGraphicsLayer.clear();
+				
+			}
+			protected function userrequest_clickHandler(event:MouseEvent):void
+			{
+				if(isRegisterUser==true && isRegisterUserMore==true)		
+				{
+					//if((userGraphicsLayer.graphicProvider as ArrayCollection).length !=0)
+					//激活点击河段
+					activateDrawTool(DrawTool.MAPPOINT);
+					//else
+					//{
+					
+					//}
+				}
+				else
+					Alert.show("Please fill out the register information","Info");
+			}
+			//用户已申请了多少出口
+			private function onuserExtentCount(event:ResultEvent):void{
+				this.cursorManager.removeBusyCursor();	
+				var strResult:String=event.result as String;				
+				if(strResult){
+					var obj:Object=JSON.parse(strResult);
+					if(obj!=null){
+						var rows:Array=obj.rows as Array;
+						ncY=Number(rows[0].NUM);
+						//激活点击河段
+						//activateDrawTool(DrawTool.MAPPOINT);
+						this.myResultarr(resultsnew);
+					}
+				}				
+			}
+			
+			//失去焦点的时候
+			private function formItem_focusOut(evt:FocusEvent):void {
+				if(password.text=="")
+				{
+					Alert.show("Please enter the password first, and then confirm password input","Info");
+					
+				}else
+				{
+					//删除两端的空格
+					var strpwd:String=StringUtil.trim(this.password.text);
+					var strpwdR:String=StringUtil.trim(this.passwordR.text);
+					
+					if(strpwd!=strpwdR)
+					{
+						Alert.show("Please check the password input is whether or not correct","Info");
+						this.passwordR.text="";
+						//this.password.setFocus();
+					}
+				}
+				//鼠标定位到此控件
+				this.password.setFocus();
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<viewer:WidgetTemplate id="wTemplate" closed="wTemplate_closedHandler(event)" minWidth="300" minHeight="430">  
+		<s:VGroup width="100%" height="100%"> 
+			<mx:Form width="100%" height="100%" horizontalCenter="0" verticalGap="2" >
+				<!-- 更改垂直间距 <mx:FormHeading label="Registration Information" color="red"/>-->
+				<!--			<s:layout>
+				<s:FormLayout gap="-14" />
+				</s:layout>-->
+				<mx:FormItem label="User Name：" required="true" textAlign="right" width="100%">
+					<mx:TextInput id="username" width="100%" textAlign="left"/>
+				</mx:FormItem>
+				<mx:FormItem label="Password：" required="true" textAlign="right" width="100%">
+					<mx:TextInput id="password" width="100%" displayAsPassword="true"  textAlign="left"/>
+				</mx:FormItem>	
+				<mx:FormItem label="Confirm password：" required="true" textAlign="right" width="100%">
+					<mx:TextInput id="passwordR" width="100%" displayAsPassword="true"  textAlign="left"/>  <!-- focusOut="formItem_focusOut(event);"-->
+				</mx:FormItem>	
+				<mx:FormItem label="Email：" required="true" textAlign="right" width="100%">
+					<mx:TextInput id="email" width="100%"  textAlign="left"/>
+				</mx:FormItem>
+				<mx:FormItem label="Real name：" required="true" textAlign="right" width="100%">
+					<mx:TextInput id="fullname" width="100%"  textAlign="left"/>
+				</mx:FormItem>	
+				<mx:FormItem label="Education：" required="true" textAlign="right" width="100%">
+					<mx:ComboBox id="education" selectedIndex="0" width="100%" dataProvider="{educationArr}"/>
+				</mx:FormItem>
+				<mx:FormItem label="Country：" required="true" textAlign="right"  width="100%">
+					<mx:ComboBox id="country" selectedIndex="0" width="100%" dataProvider="{countryArr}" change="country_changeHandler(event)"/>
+				</mx:FormItem>	
+				<mx:FormItem label="Province：" required="true" textAlign="right" width="100%">
+					<mx:ComboBox id="province" width="100%" dataProvider="{provinceArr}"/>
+				</mx:FormItem>
+				<mx:FormItem label="Company：" required="true" textAlign="right" width="100%">
+					<mx:TextInput id="company" width="100%"  textAlign="left"/>
+				</mx:FormItem>	
+				<mx:FormItem label="Address：" textAlign="right" width="100%">
+					<mx:TextInput id="address" width="100%"  textAlign="left"/>
+				</mx:FormItem>
+				<mx:FormItem label="Zipcode：" textAlign="right" width="100%">
+					<mx:TextInput id="zipcode" width="100%"  textAlign="left"/>
+				</mx:FormItem>	
+				<mx:FormItem label="Telephone：" required="true" textAlign="right" width="100%">
+					<mx:TextInput id="telephone" width="100%"  textAlign="left"/>
+				</mx:FormItem>	
+				<mx:FormItem horizontalAlign="left" paddingTop="6">
+					<s:HGroup>
+						<mx:Button label="Submit" width="50" id="submit" click="submit_clickHandler(event)"/>  
+						<mx:Button label="Reset" width="50" id="reset" click="reset_clickHandler(event)"/> 
+						<mx:Button label="Apply" width="50" id="userrequest" click="userrequest_clickHandler(event)"/>
+					</s:HGroup>
+				</mx:FormItem>
+			</mx:Form>
+		</s:VGroup>
+	</viewer:WidgetTemplate>
+	
+</viewer:BaseWidget>

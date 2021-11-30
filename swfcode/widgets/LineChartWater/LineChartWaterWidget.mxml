@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009"
+				   xmlns:s="library://ns.adobe.com/flex/spark"
+				   xmlns:mx="library://ns.adobe.com/flex/mx" backgroundColor="white"
+				   xmlns:viewer="jzjw.winder.viewer.*" preinitialize="basewidget_preinitializeHandler(event)"
+				   initialize="basewidget_initializeHandler()"
+				   widgetConfigLoaded="basewidget_widgetConfigLoaded()">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->		
+		<mx:SolidColorStroke id = "s1" color="red" weight="2"/> 
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import jzjw.winder.viewer.AppEvent;
+			import jzjw.winder.viewer.AppUtil;
+			
+			import mx.charts.series.LineSeries;
+			import mx.collections.ArrayCollection;
+			import mx.core.FlexVersion;
+			import mx.events.FlexEvent;
+			import mx.rpc.events.ResultEvent;
+			[Bindable]
+			private var dataArray:ArrayCollection=new ArrayCollection();
+			
+			private function basewidget_initializeHandler():void
+			{
+				if (isPartOfPanel) // if widget is part of "left", "right" or "bottom" panel
+				{
+					this.percentWidth = this.percentHeight = 100;
+					wTemplate.percentWidth = wTemplate.percentHeight = 100;
+				}
+				else
+				{
+					wTemplate.width =540;
+					wTemplate.height = 340;
+				}
+			}
+			private var reqUrl:String="";
+			private function basewidget_widgetConfigLoaded():void{
+				
+//				dataArray=new ArrayCollection([
+//					{day:"2012-7-22  08:00",wh:174.249},
+//					{day:"2012-7-22  09:00",wh:174.260},
+//					{day:"2012-7-22  10:00",wh:174.290},
+//					{day:"2012-7-22  11:00",wh:174.312},
+//					{day:"2012-7-22  12:00",wh:174.329},
+//					{day:"2012-7-22  13:00",wh:174.351},
+//					{day:"2012-7-22  14:00",wh:174.358},
+//					{day:"2012-7-22  15:00",wh:174.370},
+//					{day:"2012-7-22  16:00",wh:174.380},
+//				]);
+				
+				if (configXML){
+					reqUrl = configXML.url;
+				}	
+				
+				init();
+				
+				AppEvent.addListener(AppEvent.DATA_PUBLISH, sharedDataUpdated);
+			}
+			
+			private function sharedDataUpdated(event:AppEvent):void{
+				var data:Object = event.data;
+				if(data.key=="linechart"){
+					var ac:ArrayCollection=data.collection;
+					if(ac.length>0){
+						var attrs:Object=ac.getItemAt(0);
+						var channelid:String=attrs["CHANNELID"];
+						var reghighid:String=attrs["REGHIGHID"];
+						var binstrlen:String=attrs["BINSTRLEN"];
+						var binstrval:String=attrs["BINSTRVAL"];
+						var regionid:String=attrs["REGIONID"];
+						
+						lblTitle.text="河段"+channelid+"水位过程";
+						
+						try{
+							var url:String=reqUrl+"WinderHandler.aspx?act=linechart";
+							var params:URLVariables = new URLVariables();
+							params.reghighid=reghighid;
+							params.binstrlen=binstrlen;
+							params.binstrval=binstrval;
+							params.regionid=regionid;
+							params.type="H";
+							AppUtil.req(url,params,onGetLineChartDataResult);
+							this.cursorManager.setBusyCursor();	
+						}
+						catch(err:Error){
+							this.cursorManager.removeBusyCursor();
+//							showError(String(err),"项目列表");
+						}					
+					}
+				}
+			}
+			
+			private var theResults:ArrayCollection=new ArrayCollection();
+			private function onGetLineChartDataResult(event:ResultEvent):void{
+				var strResult:String=event.result as String;
+				this.cursorManager.removeBusyCursor();	
+				if(myChart.dataProvider){
+					myChart.dataProvider.removeAll();
+				}
+				
+				if(strResult){
+					var obj:Object=JSON.parse(strResult);
+					dataArray.removeAll();
+					if(obj!=null){
+						var rows:Array=obj.rows as Array;
+						if(rows!=null && rows.length>0){
+							for(var i:int=0;i<rows.length;i++){
+								var lineobj:Object=rows[i];
+								var newObj:Object={
+									DAY:lineobj.DAY+":00",
+										WH:Number(lineobj.WH)
+								};
+								dataArray.addItem(newObj);
+							}							
+							myChart.dataProvider=dataArray;	
+						}
+					}
+				}
+				else{
+					this.cursorManager.removeBusyCursor();	
+				}
+				
+			}
+			
+			private function widgetClosedHandler(event:Event):void{
+				
+			}
+			
+			private function widgetOpenedHandler(event:Event):void{
+				
+			}
+			
+			protected function init():void{
+				var array:Array = new Array();   
+				var lineSeries1:LineSeries=new LineSeries();  //设置图表的系列
+				
+				lineSeries1.xField="DAY"
+				lineSeries1.yField = "WH";
+				lineSeries1.displayName="时间趋势图";
+				
+				lineSeries1.setStyle("form", "curve");  
+				lineSeries1.setStyle("lineStroke",s1);
+				array.push(lineSeries1);
+				myChart.series = array
+				myChart.seriesFilters=[];
+			}
+			
+			
+			protected function basewidget_preinitializeHandler(event:FlexEvent):void
+			{
+				if (FlexVersion.CURRENT_VERSION >= 0x04060000)
+				{
+					// work-around for 4.6 regression
+					copyStyleFromParent("mx.charts.chartClasses.ChartBase");
+					copyStyleFromParent("mx.charts.chartClasses.CartesianChart");
+					copyStyleFromParent("mx.charts.chartClasses.PolarChart");
+					copyStyleFromParent("mx.charts.BarChart");
+					copyStyleFromParent("mx.charts.ColumnChart");
+					copyStyleFromParent("mx.charts.LineChart");
+					copyStyleFromParent("mx.charts.PieChart");
+					copyStyleFromParent("mx.charts.AxisRenderer");
+					copyStyleFromParent(".blockCategoryAxis");
+					copyStyleFromParent(".blockNumericAxis");
+					copyStyleFromParent(".linedNumericAxis");
+					copyStyleFromParent(".dashedNumericAxis");
+					copyStyleFromParent(".dashedCategoryAxis");
+					copyStyleFromParent(".hangingCategoryAxis");
+					copyStyleFromParent("mx.charts.GridLines");
+					copyStyleFromParent(".horizontalGridLines");
+					copyStyleFromParent("mx.charts.series.BarSeries");
+					copyStyleFromParent("mx.charts.series.ColumnSeries");
+					copyStyleFromParent("mx.charts.series.LineSeries");
+					copyStyleFromParent("mx.charts.series.PieSeries");
+				}
+			}
+			
+			
+			private function copyStyleFromParent(selector:String):void
+			{
+				var chartBaseStyle:CSSStyleDeclaration = styleManager.getStyleDeclaration(selector);
+				if (!chartBaseStyle && styleManager.parent)
+				{
+					var parentStyle:CSSStyleDeclaration = styleManager.parent.getStyleDeclaration(selector);
+					if (parentStyle)
+					{
+						styleManager.setStyleDeclaration(selector, parentStyle, false);
+					}
+				}
+			}
+
+			
+		]]>
+	</fx:Script>
+	<viewer:WidgetTemplate id="wTemplate" 
+						   closed="widgetClosedHandler(event)"
+						   open="widgetOpenedHandler(event)">
+		<s:VGroup width="100%" height="100%" paddingTop="5" paddingBottom="10">
+			<s:HGroup horizontalAlign="center" width="100%" height="10">
+			<s:Label  id="lblTitle" fontSize="16"/>
+				
+			</s:HGroup>
+			<s:HGroup paddingLeft="20">
+				<s:Label text="水深(m)"/>
+			</s:HGroup>
+			<mx:LineChart id="myChart"  dataProvider="{dataArray}" width="100%" height="100%" showDataTips="true">
+				<mx:backgroundElements>
+					<mx:GridLines id="gridLines" 
+								  horizontalTickAligned="false"
+								  verticalTickAligned="false">
+						<mx:verticalStroke>
+							<mx:SolidColorStroke color="#a6cecd"
+									   weight="1"
+									   alpha="0.4"/>
+						</mx:verticalStroke>
+						<mx:horizontalStroke>
+							<mx:SolidColorStroke color="#a6cecd"  weight="1"  alpha="0.6"/>
+						</mx:horizontalStroke>
+					</mx:GridLines>
+				</mx:backgroundElements>
+				
+				<mx:verticalAxis>
+					<mx:LinearAxis id="laxis" displayName="水深（米）" title="" autoAdjust="true" baseAtZero="false"  />
+				</mx:verticalAxis>
+				<mx:horizontalAxis>
+					<mx:CategoryAxis id="ca" displayName="时间" title="时间"
+									 dataProvider="{dataArray}"
+									 categoryField="DAY"
+									 />
+					
+				</mx:horizontalAxis>
+				<mx:horizontalAxisRenderers>
+					<mx:AxisRenderer axis="{ca}" canDropLabels="true" />
+				</mx:horizontalAxisRenderers>
+				<mx:series>
+				</mx:series>
+			</mx:LineChart>
+			
+		</s:VGroup>
+		
+	
+	</viewer:WidgetTemplate>
+</viewer:BaseWidget>

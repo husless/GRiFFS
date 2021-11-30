@@ -1,0 +1,335 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewer:BaseWidget  xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					xmlns:esri="http://www.esri.com/2008/ags"
+					xmlns:viewer="com.esri.viewer.*"
+					xmlns:components="com.esri.viewer.components.*"
+					initialize="basewidget_initializeHandler()"
+					widgetConfigLoaded="basewidget_widgetConfigLoaded()">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		<s:DateTimeFormatter id="dateTimeFormatter" dateTimePattern="yyyy-MM-dd HH:mm:ss"/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[			
+			import com.as3xls.xls.Cell;
+			import com.as3xls.xls.ExcelFile;
+			import com.as3xls.xls.Formatter;
+			import com.as3xls.xls.Sheet;
+			
+			import com.esri.viewer.AppEvent;
+			import com.esri.viewer.AppUtil;
+			import com.esri.viewer.ViewerContainer;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.CheckBox;
+			import mx.rpc.events.ResultEvent;
+			
+			private var newObj:Object;			
+			private var ef:ExcelFile;
+			private var ba:ByteArray;
+			private var fr:FileReference;
+			private var pcheckbox:CheckBox; 
+			private var reqUrl:String="";
+			private var theResults:ArrayCollection=new ArrayCollection();
+			[Bindable]
+			private var flowData:ArrayCollection;
+
+			[Bindable]
+			private var styleAlpha:Number;
+			//测试		
+			public var logData:ArrayCollection=new ArrayCollection([
+				{REGIONID:'2011-05-20',BINSTRLEN:'admin1',BINSTRVAL:'发射机电源故障',SHAPE:false,RNAME:"a",ISSELECT:1},
+				{REGIONID:'2011-05-20',BINSTRLEN:'admin1',BINSTRVAL:'发射机电源故障',SHAPE:false,RNAME:"b",ISSELECT:1},
+				{REGIONID:'2011-05-20',BINSTRLEN:'admin1',BINSTRVAL:'发射机电源故障',SHAPE:false,RNAME:"c",ISSELECT:0},
+				{REGIONID:'2011-05-20',BINSTRLEN:'admin1',BINSTRVAL:'发射机电源故障',SHAPE:false,RNAME:"d",ISSELECT:0},
+
+			]);
+
+			private function basewidget_initializeHandler():void
+			{
+				wTemplate.width=650;
+				wTemplate.height=350;				
+			}
+			protected function basewidget_widgetConfigLoaded():void{	
+				if (configXML){
+					reqUrl = configXML.url;
+				}
+				
+				ef = new ExcelFile();
+				ba = new ByteArray();
+				fr = new FileReference();
+				styleAlpha=configData.styleAlpha;
+				var timer:Timer=new Timer(1000,1);
+				timer.addEventListener(TimerEvent.TIMER_COMPLETE,onTimerComplete);
+				timer.start();
+			}
+			private function onTimerComplete(event:TimerEvent):void{
+				getReservoirList();
+				//prjReservoirDG.dataProvider=this.logData;
+			}
+			private function getReservoirList():void{
+				try{
+					var url:String=reqUrl+"WinderHandler.aspx?act=reservoirInfo";
+					var params:URLVariables = new URLVariables();
+					params.sid=configData.scmid;
+					AppUtil.req(url,params,onGetReservoirListResult,onFault);
+					this.cursorManager.setBusyCursor();	
+				}
+				catch(err:Error){
+					this.cursorManager.removeBusyCursor();
+					showError(String(err));
+				}
+			}			
+			private function onGetReservoirListResult(event:ResultEvent):void{
+				this.cursorManager.removeBusyCursor();	
+				var strResult:String=event.result as String;
+				if(prjReservoirDG.dataProvider){
+					prjReservoirDG.dataProvider.removeAll();
+				}				
+				if(strResult){
+					var obj:Object=JSON.parse(strResult);
+					if(obj!=null){
+						var rows:Array=obj.rows as Array;
+						if(rows!=null && rows.length>0){
+							for(var i:int=0;i<rows.length;i++){
+								var sln:Object=rows[i];
+								switch(sln.ISSELECT)
+								{
+									case "1":
+										sln.ISSELECT=true;
+										break;
+									case "0":
+										sln.ISSELECT=false;
+										break;
+								}
+								sln.ID=i+1;
+								theResults.addItem(sln);
+							}
+							prjReservoirDG.dataProvider=theResults;	
+						}
+					}
+				}
+				else{
+					this.cursorManager.removeBusyCursor();	
+				}
+			}
+			private function onFault(info:Object, token:Object = null) : void{                    
+				this.cursorManager.removeBusyCursor(); 
+			}
+			//添加出流流量过程
+			public function btnSetFlow_clickHandler(event:MouseEvent):void
+			{
+				newObj= this.prjReservoirDG.selectedItem;	
+				importXLS();
+			}
+			private function importXLS():void { 
+				var fileFilter:FileFilter = new FileFilter("Excel (.xls)", "*.xls;*.xlsx;"); 
+				fr.addEventListener(Event.SELECT, selectXLS); 
+				fr.browse([fileFilter]); 
+			} 
+			private function selectXLS(e:Event):void {
+				fr = FileReference(e.target);
+				
+				fr.addEventListener(Event.COMPLETE, fileIn);
+				fr.load();
+			}
+			private function fileIn(e:Event):void {
+				ba = fr.data;
+				ef.loadFromByteArray(ba);				
+				var sheet:Sheet = ef.sheets[0];
+				var tCols:int = sheet.cols;
+				var tRows:int = sheet.rows;				
+				var txt:String = ef.sheets.length + " sheets; " + tCols + " columns; " + tRows + " rows";
+				
+				flowData = new ArrayCollection();
+				var objtmp:Object;
+				for(var i:int=1; i<=tRows; i++)
+				{
+					objtmp=new Object();
+					//objtmp.TIME=sheet.getCell(i,0).value;
+					objtmp.STIME=Formatter.format(sheet.getCell(i,0),"yyyy-mm-dd hh:mm:ss");
+					objtmp.SFLOW=sheet.getCell(i,1).value;
+					if(objtmp.STIME !="" && objtmp.SFLOW !="")
+						//objtmp.TIME=new Date().time(Number(sheet.getCell(i,0).valueOf()._value));//dateTimeFormatter.format(objtmp.TIME);
+					    //var d:Date=new Date();
+					    //d.time=objtmp.TIME;
+						flowData.addItem(objtmp);
+				}
+				//this.prjListDG.dataProvider=flowData;
+				if(flowData.length>0)
+				{
+					flowData.addItemAt(newObj,0);
+					//共享数据
+					addSharedData("ReservoirSetFlow",flowData);
+					AppEvent.dispatch(AppEvent.WIDGET_RUN,ViewerContainer.getInstance().getWidgetId("出流数据"));
+				}else
+				{
+					Alert.show("文件打开失败","提示");
+				}
+			}
+			//显示流量过程数据
+			public function btnShowFlow_clickHandler(event:MouseEvent):void
+			{
+				newObj= this.prjReservoirDG.selectedItem;	
+				flowData = new ArrayCollection();
+				try{
+					var url:String=reqUrl+"WinderHandler.aspx?act=getreservoirflow";
+					var params:URLVariables = new URLVariables();
+					params.SID=configData.scmid;
+					params.REGIONIDNEW =newObj.REGIONIDNEW;
+					params.BINSTRLEN =newObj.BINSTRLEN;
+					params.BINSTRVAL =newObj.BINSTRVAL;
+					AppUtil.req(url,params,onGetReservoirFlowResult,onFault);
+					this.cursorManager.setBusyCursor();	
+				}
+				catch(err:Error){
+					this.cursorManager.removeBusyCursor();
+				}							
+			}
+			
+			private function onGetReservoirFlowResult(event:ResultEvent):void{
+				this.cursorManager.removeBusyCursor();	
+				var strResult:String=event.result as String;				
+				if(strResult){
+					//解析Json字符串
+					var obj:Object=JSON.parse(strResult);
+					if(obj!=null){
+						var rows:Array=obj.rows as Array;
+						if(rows!=null && rows.length>0)
+						{
+							for(var i:int=0;i<rows.length;i++)
+							{
+								var sln:Object=rows[i];
+								flowData.addItem(sln);
+							}	
+							if(flowData.length>0)
+							{
+								flowData.addItemAt(newObj,0);
+								//共享数据
+								addSharedData("ReservoirShowFlow",flowData);
+								AppEvent.dispatch(AppEvent.WIDGET_RUN,ViewerContainer.getInstance().getWidgetId("出流数据"));
+							}	
+						}else
+						{
+							Alert.show("No Data","Information");
+						}
+					}
+				}
+				else{
+					this.cursorManager.removeBusyCursor();	
+				}
+			}
+			public function selectedAllorNot(event:MouseEvent):void{ 
+				pcheckbox = event.currentTarget as CheckBox; 
+				for each(var item:Object in theResults){ 
+					item.ISSELECT = pcheckbox.selected; 
+				} 
+				prjReservoirDG.dataProvider = theResults; 
+			}			
+			
+			protected function wTemplate_openHandler(event:Event):void
+			{
+				getReservoirList();
+			}
+			//确定
+			protected function btnOK_clickHandler(event:MouseEvent):void
+			{
+				var str:String="";
+				for each(var item:Object in theResults)
+				{
+					switch(item.ISSELECT)
+					{
+						case true:
+							item.ISSELECT=1;
+							break;
+						case false:
+							item.ISSELECT=0;
+							break;
+					}
+					str+=JSON.stringify(item)+",";
+				}
+				str=str.substr(0,str.length-1);
+				var params:URLVariables=new URLVariables();
+				params.rst="{\"rst\":["+str+"]}";
+				
+				var url:String=reqUrl+"WinderHandler.aspx?act=setreservoirCal";
+				AppUtil.req(url,params,onSetReservoirCal,onFault);
+				this.cursorManager.setBusyCursor();	
+			}
+			private function onSetReservoirCal(event:ResultEvent):void
+			{
+				var strResult:String=event.result as String;
+				this.cursorManager.removeBusyCursor();	
+				if(strResult)
+				{
+					var obj:Object=JSON.parse(strResult);
+					if(obj.msg=="ok")
+					{
+						Alert.show("Set successfully.","Information");
+						
+					}
+					else
+					{
+						Alert.show("Set failed","Information");
+					}
+					//关闭窗口
+					AppEvent.dispatch(AppEvent.WIDGET_CLOSE, ViewerContainer.getInstance().getWidgetId("水库出流过程"));
+				}
+			}
+		]]>
+	</fx:Script>	
+	<viewer:WidgetTemplate id="wTemplate" minWidth="370" minHeight="110" open="wTemplate_openHandler(event)">  
+		<s:VGroup width="100%" height="100%"> 
+			<mx:DataGrid width="100%" height="100%" id="prjReservoirDG" alpha="{styleAlpha}" chromeColor="0xF21515"
+						 alternatingItemColors="[#FFFFFF,#EFEFF0]">
+				<mx:columns>
+					<fx:Array>	
+						<!--dataField="SELECT"  headerText="SELECT"-->
+						<mx:DataGridColumn width="50">	
+							<mx:headerRenderer>  
+								<fx:Component>  
+									<mx:CheckBox label="" textAlign="center" click="outerDocument.selectedAllorNot(event)"/>  
+								</fx:Component>  
+							</mx:headerRenderer>  
+							<mx:itemRenderer>
+								<fx:Component>
+									<mx:CheckBox label="" selected="{data.ISSELECT}" click="data.ISSELECT = !data.ISSELECT" textAlign="center"/>
+								</fx:Component>
+							</mx:itemRenderer>
+						</mx:DataGridColumn>
+						<mx:DataGridColumn dataField="ID" headerText="ID" width="30"></mx:DataGridColumn>	
+						<mx:DataGridColumn dataField="RNAME" headerText="RESERVOIRNAME"></mx:DataGridColumn>
+						<mx:DataGridColumn dataField="REGIONIDNEW" headerText="REGIONID"></mx:DataGridColumn>
+						<mx:DataGridColumn dataField="BINSTRLEN" headerText="BINSTRLEN"></mx:DataGridColumn>
+						<mx:DataGridColumn dataField="BINSTRVAL" headerText="BINSTRVAL"></mx:DataGridColumn>						
+						<mx:DataGridColumn width="80" headerText="Show Flow">
+							<mx:itemRenderer>
+								<fx:Component>
+									<mx:Button label="Show Flow" click="outerDocument.btnShowFlow_clickHandler(event)"/>
+								</fx:Component>
+							</mx:itemRenderer>
+						</mx:DataGridColumn>
+						<mx:DataGridColumn width="90" headerText="Upload Flow">
+							<mx:itemRenderer>
+								<fx:Component>
+									<mx:Button label="Upload Flow" click="outerDocument.btnSetFlow_clickHandler(event)"/>
+								</fx:Component>
+							</mx:itemRenderer>
+						</mx:DataGridColumn>
+					</fx:Array>
+				</mx:columns>
+				<!--
+				<s:typicalItem>  
+					<fx:Object RNAME="RNAME方案说明1" REGIONID="关于水文预报" BINSTRLEN="这是关" BINSTRVAL="slnclass" ISSELECT="guid"></fx:Object>  
+				</s:typicalItem>
+				-->
+			</mx:DataGrid>
+			<s:HGroup horizontalAlign="right">
+				<s:Button id="btnOK" label="OK" click="btnOK_clickHandler(event)"/>				
+			</s:HGroup>
+		</s:VGroup>
+	</viewer:WidgetTemplate>
+</viewer:BaseWidget>

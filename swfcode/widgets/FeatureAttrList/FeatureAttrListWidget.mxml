@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx" 
+				   xmlns:viewer="jzjw.winder.viewer.*"
+				   initialize="basewidget_initializeHandler()"
+				   widgetConfigLoaded="basewidget_widgetConfigLoaded()">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import jzjw.winder.viewer.AppEvent;
+			import jzjw.winder.viewer.utils.Hashtable;
+			
+			import mx.collections.ArrayCollection;
+			
+			private function basewidget_initializeHandler():void{
+				if (isPartOfPanel) // if widget is part of "left", "right" or "bottom" panel
+				{
+					this.percentWidth = this.percentHeight = 100;
+					wTemplate.percentWidth = wTemplate.percentHeight = 100;
+				}
+				else
+				{
+					wTemplate.width = 350;
+					wTemplate.height = 420;
+				}				
+			}
+			
+			private var attrFieldHashtable:Hashtable=new Hashtable();
+			private var fieldList:XMLList;
+			private function basewidget_widgetConfigLoaded():void{
+				if (configXML){
+					fieldList=configXML.field;
+//					for (var i :int = 0; i < fieldList.length(); i++){
+//						var nameEn:String = fieldList[i].@name_en;
+//						var nameCn:String = fieldList[i].@name_cn;
+//						attrFieldHashtable.add(nameEn,nameCn);
+//					}
+				}
+				
+				AppEvent.addListener(AppEvent.DATA_PUBLISH, sharedDataUpdated);
+			}
+			
+			private function sharedDataUpdated(event:AppEvent):void{
+				var data:Object = event.data;
+				if(data.key=="featureattrs"){
+					var ac:ArrayCollection=data.collection;
+					var newAC:ArrayCollection=new ArrayCollection();
+					var newAC1:ArrayCollection=new ArrayCollection();
+					var attrs:Object=ac.getItemAt(0);
+//					for(var field:String in attrs){
+//						var fldName:String=field;
+//						if(attrFieldHashtable.containsKey(field)){
+//							fldName=attrFieldHashtable.find(field) as String;							
+//						}
+//						
+//						var obj:Object={
+//							field:fldName,
+//							value:attrs[field]
+//						};
+//						newAC.addItem(obj);						
+//					}
+					
+					for (var i :int = 0; i < fieldList.length(); i++){
+						var nameEn:String = fieldList[i].@name_en;
+						var nameCn:String = fieldList[i].@name_cn;
+						var obj:Object={
+							field:nameCn,
+							value:attrs[nameEn]				
+						};
+						newAC.addItem(obj);
+					}
+					
+						
+					featureAttrDG.dataProvider=newAC;
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<viewer:WidgetTemplate id="wTemplate">
+		<s:DataGrid width="100%" height="100%" id="featureAttrDG"
+					alternatingRowColors="[ #EDEDED]"
+					>
+			<s:columns>
+				<s:ArrayList>
+					<s:GridColumn dataField="field" headerText="项目"></s:GridColumn>
+					<s:GridColumn dataField="value" headerText="值"></s:GridColumn>
+				</s:ArrayList>
+			</s:columns>
+			<s:typicalItem>  
+				<fx:Object field="河段及对应坡面的平均高程（m）" value="123589.56789"></fx:Object>  
+			</s:typicalItem>
+		</s:DataGrid>
+	</viewer:WidgetTemplate>
+</viewer:BaseWidget>

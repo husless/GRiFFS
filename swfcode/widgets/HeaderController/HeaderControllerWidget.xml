@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<configuration>
+<!-- 
+ -->
+ <geocoder/>
+    <prevextbutton  visible="true" icon="assets/images/i_zoomprevious.png" />
+    <nextextbutton  visible="true" icon="assets/images/i_zoomnext.png" />
+    <panbutton      visible="true" icon="assets/images/i_pan.png" />
+    <zoominbutton   visible="true" icon="assets/images/i_zoomin.png" />
+    <zoomoutbutton  visible="true" icon="assets/images/i_zoomout.png" />
+    <zoomfullbutton visible="true" icon="assets/images/i_zoomfull.png" />
+    <pointselbutton visible="true" icon="assets/images/i_draw_point.png"/>
+    <rectselbutton  visible="true" icon="assets/images/i_draw_rect.png"/>
+    <waterlinebutton  visible="true" icon="assets/images/i_linechart.png"/>
+    <flowlinebutton  visible="true" icon="assets/images/i_linechart.png"/>
+    <vsectionbutton  visible="true" icon="assets/images/vsection.png"/>
+</configuration>

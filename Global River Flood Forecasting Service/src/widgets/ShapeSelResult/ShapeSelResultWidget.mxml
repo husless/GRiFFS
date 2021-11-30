@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009"
+				   xmlns:s="library://ns.adobe.com/flex/spark"
+				   xmlns:mx="library://ns.adobe.com/flex/mx"
+				   xmlns:viewer="com.esri.viewer.*" 
+				   initialize="basewidget_initializeHandler()"
+				   widgetConfigLoaded="basewidget_widgetConfigLoaded()">
+	
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			
+			import mx.collections.ArrayCollection;
+			
+			import spark.events.GridEvent;
+			
+			import com.esri.viewer.AppEvent;
+			import com.esri.viewer.ViewerContainer;
+			
+			[Bindable]
+			private var styleAlpha:Number;
+			
+			private function basewidget_initializeHandler():void{
+					wTemplate.width = 300;
+					wTemplate.height = 420;
+			}
+			
+			
+			private function basewidget_widgetConfigLoaded():void{
+				AppEvent.addListener(AppEvent.DATA_PUBLISH, sharedDataUpdated);
+			}
+			
+			private var theResults:ArrayCollection=new ArrayCollection();
+			
+			private function sharedDataUpdated(event:AppEvent):void{
+				var data:Object = event.data;
+				if(data.key=="ShapeSelResults"){
+					if(shapeSelResultDG.dataProvider){
+						shapeSelResultDG.dataProvider.removeAll();
+					}
+					
+					theResults.removeAll();
+					var ac:ArrayCollection=new ArrayCollection();
+					theResults=data.collection;
+					if(theResults!=null && theResults.length>0){
+						for(var i:int=0;i<theResults.length;i++){
+							var feature:Graphic=theResults.getItemAt(i) as Graphic;
+							if(feature){
+								var objAttrs:Object=feature.attributes;
+								ac.addItem(objAttrs);
+							}
+						}
+						
+					}
+					shapeSelResultDG.dataProvider=ac;					
+				}			
+			}
+			
+			
+			private function widgetClosedHandler(event:Event):void
+			{
+				map.defaultGraphicsLayer.clear();
+				ViewerContainer.getInstance().closeWidget("Detailed River Information");
+			}
+			
+			private function widgetOpenedHandler(event:Event):void
+			{
+				styleAlpha=configData.styleAlpha;
+			}
+
+			private function onGridDoubleClick( event:GridEvent ):void {
+				zoomToShape(shapeSelResultDG.selectedIndex);
+			}
+			
+			private function onGridClick( event:GridEvent ):void {
+				ViewerContainer.getInstance().runWidget("Detailed River Information");
+				zoomToShape(shapeSelResultDG.selectedIndex);
+			}
+			
+			private var ac:ArrayCollection=new ArrayCollection();
+			private function zoomToShape(id:int):void{
+				if(id==-1)return;
+				var feature:Graphic=theResults.getItemAt(id) as Graphic;
+				if(feature!=null){ 
+					//map.extent=feature.geometry.extent;
+					ac.removeAll();
+					ac.addItem(feature.attributes);	
+					var timer:Timer=new Timer(1000,1);
+					timer.addEventListener(TimerEvent.TIMER_COMPLETE,onTimerComplete);
+					timer.start();					
+				}
+			}
+			
+			private function onTimerComplete(event:TimerEvent):void{
+				addSharedData("featureattrs",ac);
+			}
+			[Bindable]  
+			private var backgroundColorFareArray:Array = [0x1d72c1,0xb8e9fb];
+			
+		]]>
+	</fx:Script>
+	<viewer:WidgetTemplate id="wTemplate"  
+						   closed="widgetClosedHandler(event)"
+						   open="widgetOpenedHandler(event)">
+			<s:DataGrid width="100%" height="100%" id="shapeSelResultDG" alpha="{styleAlpha}"
+						gridDoubleClick="onGridDoubleClick( event );" 
+						gridClick="onGridClick( event );" chromeColor="0xF21515"
+					    alternatingRowColors="[ #FFFFFF,#EFEFF0]">
+				<s:columns>
+					<s:ArrayList>
+                        <!--
+						<s:GridColumn dataField="REGIONCODE" headerText="区位编码" />
+						<s:GridColumn dataField="BINSTRLEN" headerText="长度分量" />
+						<s:GridColumn dataField="BINSTRVAL" headerText="取值分量" />
+						-->
+						<s:GridColumn dataField="REGIONCODE" headerText="REGIONCODE" />
+						<s:GridColumn dataField="BINSTRLEN" headerText="BINSTRLEN" />
+						<s:GridColumn dataField="BINSTRVAL" headerText="BINSTRVAL" />
+					</s:ArrayList>
+				</s:columns>
+				<s:typicalItem>  
+<!--					<fx:Object REGHIGHID="高位编" REGIONID="低位编" BINSTRLEN="长度分" BINSTRVAL="取值分"></fx:Object>  -->
+						<fx:Object REGIONCODE="区位编" BINSTRLEN="长度分" BINSTRVAL="取值分"></fx:Object>  
+				</s:typicalItem>
+			</s:DataGrid>
+	</viewer:WidgetTemplate>
+</viewer:BaseWidget>

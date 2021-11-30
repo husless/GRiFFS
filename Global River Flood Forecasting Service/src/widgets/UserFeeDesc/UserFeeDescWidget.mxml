@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx"
+				   xmlns:esri="http://www.esri.com/2008/ags"
+				   xmlns:viewer="com.esri.viewer.*"
+				   xmlns:components="com.esri.viewer.components.*"
+				   initialize="basewidget_initializeHandler()"
+				   widgetConfigLoaded="basewidget_widgetConfigLoaded()">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.viewer.AppEvent;
+			import com.esri.viewer.AppUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			private var theResults_commit:ArrayCollection=new ArrayCollection();
+			private var theResults_storage:ArrayCollection=new ArrayCollection();
+
+			private var reqUrl:String="";
+			[Bindable]
+			private var styleAlpha:Number;
+			private function basewidget_initializeHandler():void
+			{
+				wTemplate.width = 450;
+				wTemplate.height = 350;
+			}
+			protected function basewidget_widgetConfigLoaded():void
+			{	
+				if (configXML)
+				{
+					reqUrl = configXML.url;
+				}
+				styleAlpha=configData.styleAlpha;
+				getFeeList();
+			}
+			private function getFeeList():void{
+				try{
+					var url:String=reqUrl+"WinderHandler.aspx?act=getfeedesc";					
+					AppUtil.req(url,null,onGetWaterPrjNewIdResult,onFault);
+					this.cursorManager.setBusyCursor();	
+				}
+				catch(err:Error){
+					this.cursorManager.removeBusyCursor();
+					showError(String(err),"Info");
+				}
+			}
+			//读取项目列表	
+			private function onGetWaterPrjNewIdResult(event:ResultEvent):void{
+				this.cursorManager.removeBusyCursor();	
+				var strResult:String=event.result as String;
+				if(prjListDG_Commit.dataProvider){
+					prjListDG_Commit.dataProvider.removeAll();
+					prjListDG_Storage.dataProvider.removeAll();
+				}
+				
+				if(strResult){
+					//解析Json字符串
+					var obj:Object=JSON.parse(strResult);
+					if(obj!=null){
+						var objrows:Array=obj.obj as Array;
+						var rows_commit:Array=objrows[0].rows as Array;
+						var rows_storage:Array=objrows[1].rows as Array;
+						var sln:Object;
+						//计算费用单价
+						for(var i:int=0;i<rows_commit.length;i++){
+							sln=rows_commit[i];
+							theResults_commit.addItem(sln);
+						}
+						//存储费用单价
+						for(var j:int=0;j<rows_storage.length;j++){
+							sln=rows_storage[j];
+							theResults_storage.addItem(sln);
+						}
+						prjListDG_Commit.dataProvider=theResults_commit;	
+						prjListDG_Storage.dataProvider=theResults_storage;						
+					}
+				}
+				else{
+					this.cursorManager.removeBusyCursor();	
+				}
+			}
+			//读取项目列表  错误提示
+			private function onFault(info:Object, token:Object = null) : void{                    
+				this.cursorManager.removeBusyCursor(); 
+			}
+			private function widgetOpenedHandler(event:Event):void{
+				getFeeList();		
+			}
+		]]>
+	</fx:Script>
+	<viewer:WidgetTemplate id="wTemplate" open="widgetOpenedHandler(event)">
+		<s:VGroup width="100%" height="100%" paddingTop="0" paddingLeft="0">
+			<s:Label text="Compute Unit price List:"/>		
+			<s:DataGrid width="100%" height="100%" id="prjListDG_Commit" alpha="{styleAlpha}"
+						chromeColor="0xF21515"
+						alternatingRowColors="[ #FFFFFF,#EFEFF0]">
+				<s:columns>
+					<s:ArrayList>
+						<s:GridColumn dataField="LEVELUSERID" headerText="User Level" sortable="true" ></s:GridColumn>
+						<s:GridColumn dataField="LEVELSIDID" headerText="Compute Level" sortable="true"></s:GridColumn>
+						<s:GridColumn dataField="UPRICECORES" headerText="Compute Unit Price(yuan/minute*core)"></s:GridColumn>
+						<s:GridColumn dataField="UPRICEDISCOUNT_C" headerText="Discount"></s:GridColumn>
+					</s:ArrayList>
+				</s:columns>
+				<s:typicalItem>  
+					<fx:Object LEVELUSERID="22" LEVELSIDID="22" UPRICECORES="22222222" UPRICEDISCOUNT_C="222" ></fx:Object>  
+				</s:typicalItem>			
+			</s:DataGrid>
+			<s:Label text="Storage Unit price List:"/>		
+			<s:DataGrid width="100%" height="100%" id="prjListDG_Storage" alpha="{styleAlpha}"
+						chromeColor="0xF21515"
+						alternatingRowColors="[ #FFFFFF,#EFEFF0]">
+				<s:columns>
+					<s:ArrayList>
+						<s:GridColumn dataField="LEVELUSERID" headerText="User Level" sortable="true" ></s:GridColumn>
+						<s:GridColumn dataField="LEVELSIDID" headerText="Compute Level" sortable="true"></s:GridColumn>
+						<s:GridColumn dataField="UPRICESTORAGE" headerText="Storage Unit Price(yuan/one thousand)"></s:GridColumn>
+						<s:GridColumn dataField="UPRICEDISCOUNT_S" headerText="Discount"></s:GridColumn>
+					</s:ArrayList>
+				</s:columns>
+				<s:typicalItem>  
+					<fx:Object LEVELUSERID="22" LEVELSIDID="22" UPRICESTORAGE="22222222" UPRICEDISCOUNT_S="222" ></fx:Object>  
+				</s:typicalItem>			
+			</s:DataGrid>
+		</s:VGroup>
+	</viewer:WidgetTemplate>
+</viewer:BaseWidget>

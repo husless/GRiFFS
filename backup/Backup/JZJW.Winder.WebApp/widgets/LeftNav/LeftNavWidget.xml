@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration> 
+<!-- 
+ <url>http://localhost/test/</url>
+  -->
+ <!--调用之前发布好的服务
+  <url>http://101.6.54.216/test/</url>
+  -->
+  <!--调用Ren发布服务
+  <url>http://192.168.0.4/GloF3S_V2.0/Chinese/</url>-->
+  
+   <!--NetCDF文件夹下的服务列表 
+  <MapServicesURL>http://localhost:6080/arcgis/rest/services/NetCDF?f=json</MapServicesURL>
+  -->
+   <!--服务器上的NetCDF文件夹服务列表 --> 
+   <MapServicesURL>http://101.6.54.216:6080/arcgis/rest/services/NetCDF?f=json</MapServicesURL>
+  
+  <!--机构中文名和英文名配置信息-->
+  <field org_en="ecmf" org_cn="ecmf机构"/>
+  <field org_en="A" org_cn="机构2"/>
+  <field org_en="B" org_cn="机构3"/>
+  <field org_en="C" org_cn="机构4"/>
+  <field org_en="D" org_cn="机构5"/>
+</configuration>

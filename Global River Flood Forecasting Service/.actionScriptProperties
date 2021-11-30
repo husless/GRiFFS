@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<actionScriptProperties analytics="false" mainApplicationPath="index.mxml" projectUUID="8da6f873-43f6-49af-b461-569dc5238a4f" version="10">
+  <compiler additionalCompilerArguments="-locale=zh_CN -source-path=locale/{locale} -keep-all-type-selectors=true" autoRSLOrdering="true" copyDependentFiles="true" fteInMXComponents="false" generateAccessible="true" htmlExpressInstall="true" htmlGenerate="true" htmlHistoryManagement="true" htmlPlayerVersionCheck="true" includeNetmonSwc="false" outputFolderPath="bin-debug" removeUnusedRSL="true" sourceFolderPath="src" strict="true" targetPlayerVersion="0.0.0" useApolloConfig="false" useDebugRSLSwfs="true" verifyDigests="true" warn="true">
+    <compilerSourcePath/>
+    <libraryPath defaultLinkType="1">
+      <libraryPathEntry kind="4" path="">
+        <excludedEntries>
+          <libraryPathEntry kind="3" linkType="1" path="${PROJECT_FRAMEWORKS}/libs/flex.swc" useDefaultLinkType="false"/>
+          <libraryPathEntry kind="3" linkType="1" path="${PROJECT_FRAMEWORKS}/libs/core.swc" useDefaultLinkType="false"/>
+        </excludedEntries>
+      </libraryPathEntry>
+      <libraryPathEntry kind="1" linkType="1" path="libs"/>
+    </libraryPath>
+    <sourceAttachmentPath/>
+  </compiler>
+  <applications>
+    <application path="index.mxml"/>
+  </applications>
+  <modules>
+    <module application="src/index.mxml" destPath="widgets/SchemaAttr/SchemaAttrWidget.swf" optimize="true" sourcePath="src/widgets/SchemaAttr/SchemaAttrWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/UserFeeDesc/UserFeeDescWidget.swf" optimize="true" sourcePath="src/widgets/UserFeeDesc/UserFeeDescWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/ReservoirFlow/ReservoirFlowWidget.swf" optimize="true" sourcePath="src/widgets/ReservoirFlow/ReservoirFlowWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/NNewSchema/NNewSchemaWidget.swf" optimize="true" sourcePath="src/widgets/NNewSchema/NNewSchemaWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/MapSwitcher/MapSwitcherWidget.swf" optimize="true" sourcePath="src/widgets/MapSwitcher/MapSwitcherWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/UserRegister/UserRegisterWidget.swf" optimize="true" sourcePath="src/widgets/UserRegister/UserRegisterWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/ShapeSelResult/ShapeSelResultWidget.swf" optimize="true" sourcePath="src/widgets/ShapeSelResult/ShapeSelResultWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/LayerList/LayerListWidget.swf" optimize="true" sourcePath="src/widgets/LayerList/LayerListWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/SchemaWaterParams/SchemaWaterParamsWidget.swf" optimize="true" sourcePath="src/widgets/SchemaWaterParams/SchemaWaterParamsWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/FeatureAttrList/FeatureAttrListWidget.swf" optimize="true" sourcePath="src/widgets/FeatureAttrList/FeatureAttrListWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/LineChartWater/LineChartWaterWidget.swf" optimize="true" sourcePath="src/widgets/LineChartWater/LineChartWaterWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/NSectionEdit/NSectionEditWidget.swf" optimize="true" sourcePath="src/widgets/NSectionEdit/NSectionEditWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/UserLogin/UserLoginWidget.swf" optimize="true" sourcePath="src/widgets/UserLogin/UserLoginWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/RainStation/RainStationAddWidget.swf" optimize="true" sourcePath="src/widgets/RainStation/RainStationAddWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/Legend/LegendWidget.swf" optimize="true" sourcePath="src/widgets/Legend/LegendWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/ReservoirNew/ReservoirNewWidget.swf" optimize="true" sourcePath="src/widgets/ReservoirNew/ReservoirNewWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/SchemaList/SchemaListWidget.swf" optimize="true" sourcePath="src/widgets/SchemaList/SchemaListWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/UserRegisterExt/UserRegisterExtWidget.swf" optimize="true" sourcePath="src/widgets/UserRegisterExt/UserRegisterExtWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/SchemaWater/NewSchemaWaterWidget.swf" optimize="true" sourcePath="src/widgets/SchemaWater/NewSchemaWaterWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/NNewSchemaSet/NNewSchemaSetWidget.swf" optimize="true" sourcePath="src/widgets/NNewSchemaSet/NNewSchemaSetWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/Coordinate/CoordinateWidget.swf" optimize="true" sourcePath="src/widgets/Coordinate/CoordinateWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/UserAuthority/UserAuthorityWidget.swf" optimize="true" sourcePath="src/widgets/UserAuthority/UserAuthorityWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/WidgetContainer/WidgetContainerWidget.swf" optimize="true" sourcePath="src/widgets/WidgetContainer/WidgetContainerWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/UserFee/UserFeeWidget.swf" optimize="true" sourcePath="src/widgets/UserFee/UserFeeWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/History/HistoryWidget.swf" optimize="true" sourcePath="src/widgets/History/HistoryWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/NBoundary/NBoundaryWidget.swf" optimize="true" sourcePath="src/widgets/NBoundary/NBoundaryWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/LineChartVSection/LineChartVSectionWidget.swf" optimize="true" sourcePath="src/widgets/LineChartVSection/LineChartVSectionWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/HeaderController/HeaderControllerWidget.swf" optimize="true" sourcePath="src/widgets/HeaderController/HeaderControllerWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/RainStation/RainStationControlWidget.swf" optimize="true" sourcePath="src/widgets/RainStation/RainStationControlWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/RainUpload/RainUploadWidget.swf" optimize="true" sourcePath="src/widgets/RainUpload/RainUploadWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/ReservoirFlowDesc/ReservoirFlowDescWidget.swf" optimize="true" sourcePath="src/widgets/ReservoirFlowDesc/ReservoirFlowDescWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/LineChartFlow/LineChartFlowWidget.swf" optimize="true" sourcePath="src/widgets/LineChartFlow/LineChartFlowWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/OverviewMap/OverviewMapWidget.swf" optimize="true" sourcePath="src/widgets/OverviewMap/OverviewMapWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/UserFeeDescAdmin/UserFeeDescAdminWidget.swf" optimize="true" sourcePath="src/widgets/UserFeeDescAdmin/UserFeeDescAdminWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/UserAuthorityList/UserAuthorityListWidget.swf" optimize="true" sourcePath="src/widgets/UserAuthorityList/UserAuthorityListWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/Navigation/NavigationWidget.swf" optimize="true" sourcePath="src/widgets/Navigation/NavigationWidget.mxml"/>
+    <module application="src/index.mxml" destPath="widgets/LeftNav/LeftNavWidget.swf" optimize="true" sourcePath="src/widgets/LeftNav/LeftNavWidget.mxml"/>
+  </modules>
+  <buildCSSFiles/>
+  <flashCatalyst validateFlashCatalystCompatibility="false"/>
+</actionScriptProperties>
+

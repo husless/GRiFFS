@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009"
+                   xmlns:s="library://ns.adobe.com/flex/spark"
+                   xmlns:mx="library://ns.adobe.com/flex/mx"
+                   xmlns:esri="http://www.esri.com/2008/ags"                   
+				   xmlns:viewer="com.esri.viewer.*" 
+                   initialize="basewidget_initializeHandler()"
+                   widgetConfigLoaded="basewidget_widgetConfigLoaded()"
+				   >
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.TimeExtent;
+			import com.esri.ags.events.LayerEvent;
+			import com.esri.ags.events.TimeExtentEvent;
+			import com.esri.ags.layers.ArcGISDynamicMapServiceLayer;
+			import com.esri.ags.layers.FeatureLayer;
+			import com.esri.ags.layers.supportClasses.TimeInfo;
+			
+			import com.esri.viewer.AppEvent;
+			import com.esri.viewer.AppUtil;
+			import com.esri.viewer.ViewerContainer;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.formatters.DateFormatter;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.http.HTTPService;
+			
+			public var flayer:ArcGISDynamicMapServiceLayer=new ArcGISDynamicMapServiceLayer();
+			
+			private function basewidget_initializeHandler():void
+			{
+				//percentWidth = percentHeight = 100;
+				wTemplate.width = 400;
+				wTemplate.height = 125;
+			}
+			private function basewidget_widgetConfigLoaded():void{
+				
+				//AppEvent.addListener(AppEvent.DATA_PUBLISH, sharedDataUpdatedPublish);
+				//AppEvent.addListener(AppEvent.DATA_SENT,sharedDataUpdated);
+				//AppEvent.dispatch(AppEvent.DATA_FETCH_ALL);
+				
+			}	
+			//监听事件
+			/*
+			private function sharedDataUpdated(event:AppEvent):void
+			{
+				var data:Object = event.data.find("ServiceURL");
+				var ac:ArrayCollection=data as ArrayCollection;//data.collection;
+				var strServiceURL:String=ac.getItemAt(0) as String;	
+
+				//map.timeSlider=timeSlider;
+				flayer=new ArcGISDynamicMapServiceLayer();
+				flayer.url=strServiceURL;
+				//flayer.addEventListener(LayerEvent.LOAD,HisLayer_loadHandler);
+				//flayer.alpha=0.4;
+				//map.addLayer(flayer,3);
+				
+			}
+			*/
+		]]>
+	</fx:Script>
+	
+	
+    <viewer:WidgetTemplate id="wTemplate">
+		<!--
+        <esri:Legend id="myLegend"
+                     width="100%" height="100%"
+                     top="10"
+                     respectCurrentMapScale="{respectCurrentMapScale}"/>
+		-->
+		<s:Image width="100%" height="100%" source="@Embed('assets/images/LegendT.png')"/>
+    </viewer:WidgetTemplate>
+</viewer:BaseWidget>

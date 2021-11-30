@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx" 
+				   xmlns:viewer="com.esri.viewer.*"
+				   initialize="basewidget_initializeHandler()"
+				   widgetConfigLoaded="basewidget_widgetConfigLoaded()">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.layers.GraphicsLayer;
+			import com.esri.viewer.AppEvent;
+			import mx.collections.ArrayCollection;
+			import com.esri.viewer.AppUtil;
+			import mx.rpc.events.ResultEvent;
+			import mx.controls.Alert;
+			import com.esri.viewer.ViewerContainer;
+			import flash.events.KeyboardEvent;
+			
+			private var reqUrl:String="";
+			private function basewidget_initializeHandler():void
+			{
+				wTemplate.width = 290;
+				wTemplate.height =200;
+			}
+			//添加监听
+			protected function basewidget_widgetConfigLoaded():void{	
+				if (configXML){
+					reqUrl = configXML.url;
+				}
+				this.txtUname.setFocus();
+			}
+			//关闭窗口
+			protected function wTemplate_closedHandler(event:Event):void
+			{
+				Clear();
+			}
+			protected function Clear():void
+			{
+				this.txtUname.text="";
+				this.txtpwd.text="";
+			}
+			//取消，清空
+			protected function btnCancel_clickHandler(event:MouseEvent):void
+			{
+				Clear();
+			}
+			//登陆
+			protected function btnOK_clickHandler(event:MouseEvent):void
+			{
+				try{
+					if(this.txtUname.text=="")
+					{
+						//showError("用户名不能为空！","提示");
+						Alert.show("The user name is required！","Information");
+						this.txtUname.setFocus();
+						return;
+					}
+					if(this.txtpwd.text=="")
+					{
+						//showError("密码不能为空！","提示");
+						Alert.show("The password is required！","Information");
+						this.txtpwd.setFocus();
+						return;
+					}
+					var url:String=reqUrl+"WinderHandler.aspx?act=login";
+					var params:URLVariables = new URLVariables();
+					params.uname=txtUname.text;
+					params.pwd=txtpwd.text;
+
+					AppUtil.req(url,params,onGetUserLoginResult,onFault);
+					this.cursorManager.setBusyCursor();	
+				}
+				catch(err:Error){
+					this.cursorManager.removeBusyCursor();
+					//showError(String(err));
+					Alert.show(String(err),"Information");
+				}
+			}
+			//获取模型参数  返回结果
+			private function onGetUserLoginResult(event:ResultEvent):void{
+				var graLayer:GraphicsLayer=map.getLayer("userGraphics") as GraphicsLayer;
+				if(graLayer !=null)
+					graLayer.clear();
+				var strResult:String=event.result as String;
+				this.cursorManager.removeBusyCursor();	
+				if(strResult){
+					var obj:Object=JSON.parse(strResult);
+					if(obj.flag=="YES")
+					{
+						//showError("登陆成功");
+						var ac:ArrayCollection=new ArrayCollection();
+						ac.addItem(txtUname.text);
+						ac.addItem(obj.flag);
+
+						addSharedData("currusername",ac);
+						Alert.okLabel="OK";
+						Alert.show("Login Success","Information");
+						//关闭窗口
+						AppEvent.dispatch(AppEvent.WIDGET_CLOSE, ViewerContainer.getInstance().getWidgetId("User Login"));
+						
+					}else
+					{
+						//showError("用户名或密码错误，请重新输入");
+						this.txtpwd.text="";
+						Alert.show("The user name or password errors, please enter again","Information");
+						this.txtUname.setFocus();
+					}
+				}
+				else{
+					this.cursorManager.removeBusyCursor();
+				}
+			}
+			//获取模型参数  错误提示
+			private function onFault(info:Object, token:Object = null) : void{                    
+				this.cursorManager.removeBusyCursor(); 
+			}	
+			/* private function txtpwd_Enter(event:KeyboardEvent):void				
+			{				
+				if (event.charCode == 13)					
+					btnOK_clickHandler();				
+			} */
+		]]>
+	</fx:Script>
+	<viewer:WidgetTemplate id="wTemplate" closed="wTemplate_closedHandler(event)" minWidth="290" minHeight="200">
+		<s:VGroup horizontalAlign="center">
+			<s:Form width="100%" height="100%" horizontalCenter="0">
+				<s:FormItem label="User name：">
+					<s:TextInput id="txtUname" width="100%"/>
+				</s:FormItem>
+				<s:FormItem label="Password ：">
+					<s:TextInput id="txtpwd" width="100%" displayAsPassword="true"/><!-- keyDown="txtpwd_Enter(event)"-->
+				</s:FormItem>			
+			</s:Form>
+			<s:HGroup horizontalAlign="right">
+				<s:Button id="btnOK" label="Login" width="50" fontSize="11" click="btnOK_clickHandler(event)"/>
+				<s:Button id="btnCancel" label="Clear" width="50" fontSize="11" click="btnCancel_clickHandler(event)"/>
+			</s:HGroup>
+		</s:VGroup>		
+	</viewer:WidgetTemplate>
+</viewer:BaseWidget>

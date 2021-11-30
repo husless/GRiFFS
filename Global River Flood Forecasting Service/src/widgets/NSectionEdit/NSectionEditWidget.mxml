@@ -1,0 +1,366 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx"
+				   xmlns:viewer="com.esri.viewer.*"
+				   xmlns:components="com.esri.viewer.components.*"
+				   initialize="basewidget_initializeHandler()"
+				   widgetConfigLoaded="basewidget_widgetConfigLoaded()"
+				   xmlns:amcharts="http://www.amcharts.com/com_internal">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->		
+	</fx:Declarations>
+	<fx:Style>
+		@namespace mx "library://ns.adobe.com/flex/mx";
+		.Form{
+			indicatorGap: 10;
+			paddingLeft: 1;
+			paddingRight: 1;
+			paddingTop: 1;
+			paddingBottom: 1;
+			verticalGap:3;
+		}
+	</fx:Style>
+	<fx:Script>
+		<![CDATA[
+			import flash.filters.DropShadowFilter;
+			
+			import com.esri.viewer.AppEvent;
+			import com.esri.viewer.AppUtil;
+			import com.esri.viewer.ViewerContainer;
+			//import com.esri.viewer.components.DateTime;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.events.ItemClickEvent;
+			import mx.formatters.DateFormatter;
+			import mx.rpc.events.ResultEvent;
+			
+			import spark.events.IndexChangeEvent;
+		    
+			private var reqUrl:String="";
+			private var currRSchemName:String="";
+			
+			//Txt文件
+			private var txtFile:FileReference=new FileReference();
+			
+			[Bindable]
+			private var chartData:ArrayCollection = new ArrayCollection([
+			{year:2005,expenses:18.1},
+			{year:2006,expenses:22.8},
+			{year:2007,expenses:23.9},
+			{year:2008,expenses:25.1},
+			{year:2009,expenses:25.0}
+			]); 
+			//断面类型下拉
+			[Bindable]
+			private var myDDList:ArrayCollection = new ArrayCollection(
+				[ 
+					{name:"非矩形", ID:1},
+					{name:"矩形", ID:2},
+					{name:"梯形", ID:3}
+				]);
+			/* [Bindable]
+			private var chartData:ArrayCollection = new ArrayCollection([
+				{year:2005,income:23.5,expenses:18.1},
+				{year:2006,income:26.2,expenses:22.8},
+				{year:2007,income:30.1,expenses:23.9},
+				{year:2008,income:29.5,expenses:25.1},
+				{year:2009,income:24.6,expenses:25.0}
+			]); */
+			[Bindable]
+			private var shadow:DropShadowFilter = new DropShadowFilter(2,45,0,0.5);
+			
+			[Bindable]
+			private var mlb:XML=
+				<root>
+					<league label="American League">
+						<division label="West">
+							<team label="Los Angeles" />
+							<team label="Seattle" />
+							<team label="Oakland" />
+							<team label="Texas" />
+						</division>
+						<division label="Central">
+							<team label="Cleveland" />
+							<team label="Detroit" />
+							<team label="Minnesota" />
+							<team label="Chicago" />
+							<team label="Kansas City" />
+						</division>
+						<division label="East">
+							<team label="Boston" />
+							<team label="New York" />
+							<team label="Toronto" />
+							<team label="Baltimore" />
+							<team label="Tampa Bay" />
+						</division>
+					</league>
+					<league label="National League">
+						<division label="West">
+							<team label="Arizona" />
+							<team label="Colorado" />
+							<team label="San Diego" />
+							<team label="Los Angeles" />
+							<team label="San Francisco" />
+						</division>
+						<division label="Central">
+							<team label="Chicago" />
+							<team label="Milwaukee" />
+							<team label="St. Louis" />
+							<team label="Houston" />
+							<team label="Cincinnati" />
+							<team label="Pittsburgh" />
+						</division>
+						<division label="East">
+							<team label="Philadelphia" />
+							<team label="New York" />
+							<team label="Atlanta" />
+							<team label="Washington" />
+							<team label="Florida" />
+						</division>
+					</league>
+				</root>;
+			
+			//初始化
+			private function basewidget_initializeHandler():void
+			{
+				if (isPartOfPanel) 
+				{
+					this.percentWidth = this.percentHeight = 100;
+					wTemplate.percentWidth = wTemplate.percentHeight = 100;
+				}
+				else
+				{
+					wTemplate.width = 720;
+					wTemplate.height = 540;
+				}
+				//解决读取外部文件中文乱码问题
+				//flash.system.System.useCodePage=true;
+			}
+			//读取配置文件
+			private function basewidget_widgetConfigLoaded():void{
+				if (configXML){
+					reqUrl = configXML.url||"" ;
+				}
+				//监听
+				AppEvent.addListener(AppEvent.DATA_PUBLISH,sharedDataUpdatedPublish);
+				AppEvent.addListener(AppEvent.DATA_SENT,sharedDataUpdated);
+				
+				/* new TxtLoader().loadTxt('F://liurh01/GlobalHydroV2.0/doc/河道模拟doc/TxtTest.txt', function(txt:String):void {  
+					showTxt.text = txt;  
+					
+				}); */ 
+			}
+			
+			private function sharedDataUpdatedPublish(event:AppEvent):void{
+				var data:Object = event.data;
+				//当前河道方案名称
+				if(data.key=="currRSchemName"){
+					var act:ArrayCollection=data.collection;
+					currRSchemName=act.getItemAt(0) as String;
+					
+				}
+			}
+			private function sharedDataUpdated(event:AppEvent):void{
+				var data:Object = event.data.find("currRSchemName");
+				//当前河道方案名称
+				if(data !=null){
+					var act:ArrayCollection=data as ArrayCollection;
+					currRSchemName=act.getItemAt(0) as String;
+				}
+			}
+			//关闭窗口
+			protected function wTemplate_closedHandler(event:Event):void
+			{
+				
+			}
+			//打开窗口
+			protected function wTemplate_openHandler(event:Event):void
+			{
+				
+			}
+			//断面类型下来
+			protected function DDList_changeHandler(event:IndexChangeEvent):void
+			{
+				switch(DDList.selectedIndex)
+				{
+					case 0:
+					   TbNavType.selectedIndex=0;
+					   break;
+					case 1:
+					   TbNavType.selectedIndex=1;
+					   break;
+					case 2:
+					   TbNavType.selectedIndex=2;
+					   break;
+				}
+			}
+			//点击事件
+			protected function btnOne_itemClickHandler(event:ItemClickEvent):void
+			{
+				switch(event.index)
+				{
+					case 0:
+						//添加断面
+						
+						break;
+					case 1:
+						//断面点导入，导入本地Txt文件
+						
+						var filter:FileFilter=new FileFilter("请选择TXT文件*.*", "*.txt");						
+						txtFile.addEventListener(Event.SELECT,selectedTxtFile);
+						txtFile.browse([filter]);
+						break;
+					case 2:
+						//断面批量导入
+						break;
+				}
+			}
+			//选中的Txt文件
+			protected function selectedTxtFile(e:Event):void{
+				//txtfileName = e.target.name;
+				txtFile.load();
+				txtFile.addEventListener(Event.COMPLETE,getTxtData);				
+			}
+			//读取Txt文件
+			protected function getTxtData(e:Event):void{
+				var dataArr:ByteArray = txtFile.data;
+				dataArr.position = 0;								
+				//解决中文乱码问题
+				var dataStr:String=dataStr=dataArr.readMultiByte(dataArr.length,"gb2312");
+				var linesData:Array = dataStr.split("\r\n");
+			}
+			
+			protected function btnTwo_itemClickHandler(event:ItemClickEvent):void
+			{
+				// TODO Auto-generated method stub
+				
+			}
+			
+			protected function btnThree_itemClickHandler(event:ItemClickEvent):void
+			{
+				// TODO Auto-generated method stub
+				
+			}
+			
+		]]>
+	</fx:Script>
+	<viewer:WidgetTemplate id="wTemplate" 
+						   closed="wTemplate_closedHandler(event)"
+						    open="wTemplate_openHandler(event)">
+		<s:HGroup left="1" top="1" right="1" bottom="1" width="100%" height="100%">
+			<s:Group width="20%" height="100%">
+				<mx:Tree id="tree" dataProvider="{mlb}" labelField="@label" horizontalScrollPolicy="auto" verticalScrollPolicy="auto"
+						 showRoot="false" width="100%" rowCount="8" height="100%"/>
+			</s:Group>
+			
+			<s:VGroup>
+				<s:Group width="100%" height="20%">
+					<amcharts:AmSerialChart 
+						id="chart"
+						width="100%"
+						height="100%"                 
+						dataProvider="{chartData}"
+						categoryField="year"
+						> <!--angle="30" depth3D="30"-->
+						<amcharts:graphs>
+							<!--<amcharts:AmGraph title="Income" id="g0" valueField="income" type="column" lineAlpha="0" fillColors="[#ADD981]" fillAlphas="[1]"/>   -->                     
+							<amcharts:AmGraph title="Expenses" markerType="line" id="g1" valueField="expenses" 
+											  type="line" lineThickness="1" bullet="round" filters="{[shadow]}"/>                        
+						</amcharts:graphs>
+						<amcharts:valueAxes>
+							<amcharts:ValueAxis dashLength="5"/>                            
+						</amcharts:valueAxes>
+						<amcharts:categoryAxis>
+							<amcharts:CategoryAxis gridPosition="start" dashLength="5"/>
+						</amcharts:categoryAxis>
+					</amcharts:AmSerialChart>
+					
+					<amcharts:AmLegend color="0x000000"	x="45" y="10" switchable="false" dataProvider="{chart}"
+									   width="100%" marginRight="20" marginLeft="40" 
+									   textClickEnabled="false"	marginBottom="5"/>                     
+				</s:Group>
+				<s:HGroup width="100%" height="70%">
+												                 
+					<!--<mx:Spacer width="5"/>-->
+					<s:VGroup width="55%" height="100%">
+						<s:Panel width="100%" title="断面信息">
+							<mx:Form width="100%" height="100%" horizontalCenter="0" verticalGap="2" paddingTop="2" paddingBottom="2" >
+								<!--<mx:FormItem label="断面方案：">
+									<mx:TextInput id="txtScmName" width="100%" enabled="false"/>
+								</mx:FormItem>-->
+								<mx:FormItem label="河段名称：">
+									<mx:TextInput id="txtRName" width="100%"/>
+								</mx:FormItem>	
+								<mx:FormItem label="断面ID：">
+									<mx:TextInput id="txtRID" width="100%" enabled="false" text="自动编号"/>
+								</mx:FormItem>	
+								<mx:FormItem label="断面类型：">
+									<s:DropDownList id="DDList" width="100%" dataProvider="{myDDList}" labelField="name" change="DDList_changeHandler(event)" selectedIndex="0">										
+									</s:DropDownList>
+								</mx:FormItem>
+								<mx:FormItem label="距最上游(m)：">
+									<mx:TextInput id="txtRup" width="100%" enabled="false"/>
+								</mx:FormItem>	
+								<mx:FormItem label="基准高程(m)：">
+									<mx:TextInput id="txtRElevation" width="100%"/>
+								</mx:FormItem>	
+								<mx:FormItem label="糙率(曼宁系数)：">
+									<mx:TextInput id="txtRroughness" width="100%"/>
+								</mx:FormItem>	
+								<mx:FormItem label="经度(X)：">
+									<mx:TextInput id="txtX" width="100%" enabled="false"/>
+								</mx:FormItem>	
+								<mx:FormItem label="纬度(Y)：">
+									<mx:TextInput id="txtY" width="100%" enabled="false"/>
+								</mx:FormItem>	
+							</mx:Form>
+						</s:Panel>
+						<!--<s:Panel width="100%" title="坐标" height="90" >
+							<mx:Form width="100%" height="100%" horizontalCenter="0" verticalGap="2" paddingTop="2" paddingBottom="2">
+								<mx:FormItem label="经度(X)：">
+									<mx:TextInput id="txtX" width="100%" enabled="false"/>
+								</mx:FormItem>	
+								<mx:FormItem label="纬度(Y)：">
+									<mx:TextInput id="txtY" width="100%" enabled="false"/>
+								</mx:FormItem>	
+							</mx:Form>
+						</s:Panel>-->
+						<mx:ButtonBar id="btnOne" horizontalGap="20" paddingTop="2" paddingBottom="2" itemClick="btnOne_itemClickHandler(event)" >
+							<mx:dataProvider>
+								<s:ArrayCollection source="['添加断面', '断面点导入', '断面批量导入']" />
+							</mx:dataProvider>
+						</mx:ButtonBar> 
+						<mx:ButtonBar id="btnTwo" horizontalGap="20" paddingTop="2" paddingBottom="2" itemClick="btnTwo_itemClickHandler(event)" >
+							<mx:dataProvider>
+								<s:ArrayCollection source="['编辑断面', '插入行', '删除行']" />
+							</mx:dataProvider>
+						</mx:ButtonBar> 
+						<mx:ButtonBar id="btnThree" horizontalGap="20" paddingTop="2" paddingBottom="2" itemClick="btnThree_itemClickHandler(event)" >
+							<mx:dataProvider>
+								<s:ArrayCollection source="['保存断面', '画图']" />
+							</mx:dataProvider>
+						</mx:ButtonBar> 
+                        <!--<mx:TextArea id="showTxt" width="100%" height="100%"/>-->
+					</s:VGroup>
+					<!--<mx:Spacer width="32"/>-->
+					<s:Group width="45%" height="100%">
+						<mx:TabNavigator width="100%" height="100%" horizontalCenter="0" verticalCenter="0" id="TbNavType">						
+							<s:NavigatorContent width="100%" height="100%" label="非矩形" >							
+								<mx:DataGrid dataProvider="{chartData}" width="100%" editable="true" height="100%" verticalScrollPolicy="auto"/>   				
+							</s:NavigatorContent>						
+							<s:NavigatorContent width="100%" height="100%" label="矩形">
+								
+							</s:NavigatorContent>
+							<s:NavigatorContent width="100%" height="100%" label="梯形">
+								
+							</s:NavigatorContent>
+						</mx:TabNavigator>	
+					</s:Group>		
+				</s:HGroup>
+			</s:VGroup>
+		</s:HGroup>
+	</viewer:WidgetTemplate>
+</viewer:BaseWidget>

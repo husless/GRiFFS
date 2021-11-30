@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<viewer:BaseWidget xmlns:fx="http://ns.adobe.com/mxml/2009"
+				   xmlns:s="library://ns.adobe.com/flex/spark"
+				   xmlns:mx="library://ns.adobe.com/flex/mx"
+				   xmlns:viewer="jzjw.winder.viewer.*" 
+				   initialize="basewidget_initializeHandler()"
+				   widgetConfigLoaded="basewidget_widgetConfigLoaded()">
+	
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.Graphic;
+			import jzjw.winder.viewer.AppEvent;
+			import jzjw.winder.viewer.ViewerContainer;
+			
+			import mx.collections.ArrayCollection;
+			
+			import spark.events.GridEvent;
+			[Bindable]
+			private var styleAlpha:Number;
+			
+			private function basewidget_initializeHandler():void{
+				if (isPartOfPanel) // if widget is part of "left", "right" or "bottom" panel
+				{
+					this.percentWidth = this.percentHeight = 100;
+					wTemplate.percentWidth = wTemplate.percentHeight = 100;
+				}
+				else
+				{
+					wTemplate.width = 300;
+					wTemplate.height = 420;
+				}				
+			}
+			
+			
+			private function basewidget_widgetConfigLoaded():void{
+				AppEvent.addListener(AppEvent.DATA_PUBLISH, sharedDataUpdated);
+			}
+			
+			private var theResults:ArrayCollection=new ArrayCollection();
+			
+			private function sharedDataUpdated(event:AppEvent):void{
+				var data:Object = event.data;
+				if(data.key=="ShapeSelResults"){
+					if(shapeSelResultDG.dataProvider){
+						shapeSelResultDG.dataProvider.removeAll();
+					}
+					
+					theResults.removeAll();
+					var ac:ArrayCollection=new ArrayCollection();
+					theResults=data.collection;
+					if(theResults!=null && theResults.length>0){
+						for(var i:int=0;i<theResults.length;i++){
+							var feature:Graphic=theResults.getItemAt(i) as Graphic;
+							if(feature){
+								var objAttrs:Object=feature.attributes;
+								ac.addItem(objAttrs);
+							}
+						}
+						
+					}
+					shapeSelResultDG.dataProvider=ac;					
+				}			
+			}
+			
+			
+			private function widgetClosedHandler(event:Event):void
+			{
+				map.defaultGraphicsLayer.clear();
+				ViewerContainer.getInstance().closeWidget("河网要素详细信息");
+			}
+			
+			private function widgetOpenedHandler(event:Event):void
+			{
+				styleAlpha=configData.styleAlpha;
+			}
+
+			private function onGridDoubleClick( event:GridEvent ):void {
+				zoomToShape(shapeSelResultDG.selectedIndex);
+			}
+			
+			private function onGridClick( event:GridEvent ):void {
+				ViewerContainer.getInstance().runWidget("河网要素详细信息");
+				zoomToShape(shapeSelResultDG.selectedIndex);
+			}
+			
+			private var ac:ArrayCollection=new ArrayCollection();
+			private function zoomToShape(id:int):void{
+				if(id==-1)return;
+				var feature:Graphic=theResults.getItemAt(id) as Graphic;
+				if(feature!=null){ 
+					map.extent=feature.geometry.extent;
+					ac.removeAll();
+					ac.addItem(feature.attributes);	
+					var timer:Timer=new Timer(1000,1);
+					timer.addEventListener(TimerEvent.TIMER_COMPLETE,onTimerComplete);
+					timer.start();					
+				}
+			}
+			
+			private function onTimerComplete(event:TimerEvent):void{
+				addSharedData("featureattrs",ac);
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<viewer:WidgetTemplate id="wTemplate"  
+						   closed="widgetClosedHandler(event)"
+						   open="widgetOpenedHandler(event)">
+			<s:DataGrid width="100%" height="100%" id="shapeSelResultDG" alpha="{styleAlpha}"
+						gridDoubleClick="onGridDoubleClick( event );" 
+						gridClick="onGridClick( event );" 
+						alternatingRowColors="[ #EDEDED]"
+						>
+				<s:columns>
+					<s:ArrayList>
+						<s:GridColumn dataField="REGHIGHID" headerText="高位编码"></s:GridColumn>
+						<s:GridColumn dataField="REGIONID" headerText="低位编码"></s:GridColumn>
+						<s:GridColumn dataField="BINSTRLEN" headerText="长度分量"></s:GridColumn>
+						<s:GridColumn dataField="BINSTRVAL" headerText="取值分量"></s:GridColumn>
+					</s:ArrayList>
+				</s:columns>
+				<s:typicalItem>  
+					<fx:Object REGHIGHID="高位编" REGIONID="低位编" BINSTRLEN="长度分" BINSTRVAL="取值分"></fx:Object>  
+				</s:typicalItem>
+			</s:DataGrid>
+	</viewer:WidgetTemplate>
+</viewer:BaseWidget>
